@@ -1,68 +1,98 @@
-# AKA CP3 Final
-
+# AKA CP3 Final with custom physics properties
 
 # pip install pybullet
 # pip install pybullet_data
 
-import pybullet as p
+import pybullet as p # type: ignore
 import time
-import pybullet_data
+import pybullet_data # type: ignore
 
-def run_simulation():
-    # 1. Connect to the PyBullet physics server in GUI mode
-    # This automatically opens a visualization window.
-    physics_client = p.connect(p.GUI)
-    
-    # 2. Add the default search path for standard assets (like the ground plane)
-    p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    
-    # 3. Set up the environment physics (e.g., gravity)
-    p.setGravity(0, 0, -10) # Earth's gravity in the Z direction
+class Object:
+    def __init__(self, mass=0.0, start_pos = [0,0,0], start_orientation = [0, 0, 0], color = [0,0,0]):
+        self.mass = mass
+        self.start_pos = start_pos
+        self.start_orientation = p.getQuaternionFromEuler(start_orientation)
+        self.color = color # RGB color with range 0-1
+        self.body_id = None
 
-    # 4. Load the ground plane (static object)
+    def create(self):
+        pass
+
+    def change_dynamics(self, lateral_friction, restitution, linear_damping, angular_damping):
+        p.changeDynamics(
+            self.body_id, #defines which object to change
+            -1, # Target link index (-1 for base)
+            lateralFriction=lateral_friction, # How much objects resist sliding against surfaces (higher = more grip)
+            restitution=restitution, # Bounciness; 1.0 = perfect bounce, 0 = no bounce
+            linearDamping=linear_damping, # Resistance to linear motion; slows down movement over time
+            angularDamping=angular_damping # Resistance to rotation; slows down spin over time
+        )
+
+class Box(Object):
+    def __init__(self, mass=0.0, start_pos = [0,0,0], start_orientation = [0, 0, 0], color = [1,1,1], half_extents = [0.0,0.0,0.0]):
+        super().__init__(mass, start_pos, start_orientation, color)
+        self.half_extents = half_extents
+        self.body_id = self.create_box()
+
+    def create(self):
+        col_shape_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=self.half_extents)
+        vis_shape_id = p.createVisualShape(p.GEOM_BOX, halfExtents=self.half_extents, rgbaColor=self.color)
+        body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos, self.start_orientation)
+        return body_id
+    
+    def change_dynamics(self, lateral_friction, restitution, linear_damping, angular_damping):
+        p.changeDynamics(
+            self.body_id, -1,
+            lateralFriction=lateral_friction,
+            restitution=restitution,
+            linearDamping=linear_damping,
+            angularDamping=angular_damping
+        )
+
+class Sphere(Object):
+    def __init__(self, mass=0.0, start_pos = [0,0,0], start_orientation = [0, 0, 0], color = [0,0,0], radius = 0.0):
+        super().__init__(mass, start_pos, start_orientation, color)
+        self.radius = radius
+        self.body_id = self.create_sphere()
+
+    def create(self):
+        col_shape_id = p.createCollisionShape(p.GEOM_SPHERE, radius=self.radius)
+        vis_shape_id = p.createVisualShape(p.GEOM_SPHERE, radius=self.radius, rgbaColor=self.color)
+        body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos)
+        return body_id
+    
+    def change_dynamics(self, lateral_friction, restitution, linear_damping, angular_damping):
+        p.changeDynamics(
+            self.body_id, -1,
+            lateralFriction=lateral_friction,
+            restitution=restitution,
+            linearDamping=linear_damping,
+            angularDamping=angular_damping
+        )
+
+def simulation(spheres,boxes,camera_pos):
+    # --- Initialize PyBullet physics simulation ---
+    p.connect(p.GUI)  # Use p.DIRECT for non-graphical version
+    p.setAdditionalSearchPath(pybullet_data.getDataPath())  # To load plane.urdf
+    p.setGravity(0, 0, -9.81)  # Set gravity
+
+    # --- Create ground plane ---
     plane_id = p.loadURDF("plane.urdf")
 
-    # 5. Create and add dynamic objects (boxes and spheres)
-
-    # --- Create a box (dynamic object) ---
-    # Define the visual and collision shapes for a box with half-extents (0.5, 0.5, 0.5)
-    box_half_extents = [0.5, 0.5, 0.5]
-    box_col_shape_id = p.createCollisionShape(p.GEOMETRY_BOX, halfExtents=box_half_extents)
-    box_vis_shape_id = p.createVisualShape(p.GEOMETRY_BOX, halfExtents=box_half_extents, rgbaColor=[1, 0, 0, 1]) # Red color
-
-    box_mass = 1.0
-    box_start_pos = [1, 0, 5] # Start 5 meters high
-    box_start_orientation = p.getQuaternionFromEuler([0, 0, 0])
-    
-    # Create the rigid body in the physics world
-    box_id = p.createMultiBody(box_mass, box_col_shape_id, box_vis_shape_id, box_start_pos, box_start_orientation)
-
-
-    # --- Create a sphere (dynamic object) ---
-    # Define the visual and collision shapes for a sphere with a radius of 0.5
-    sphere_radius = 0.5
-    sphere_col_shape_id = p.createCollisionShape(p.GEOMETRY_SPHERE, radius=sphere_radius)
-    sphere_vis_shape_id = p.createVisualShape(p.GEOMETRY_SPHERE, radius=sphere_radius, rgbaColor=[0, 0, 1, 1]) # Blue color
-
-    sphere_mass = 1.0
-    sphere_start_pos = [-1, 0, 7] # Start 7 meters high
-    
-    # Create the rigid body in the physics world (orientation is ignored for perfect spheres)
-    sphere_id = p.createMultiBody(sphere_mass, sphere_col_shape_id, sphere_vis_shape_id, sphere_start_pos)
-
-
-    print("Starting simulation loop. Press Ctrl+C to exit.")
-
-    # 6. Run the simulation loop
-    while p.isConnected():
-        # Step the simulation forward by a fixed time increment
-        p.stepSimulation()
-        
-        # Optional: Add a short sleep to slow down the visualization for human viewing
-        time.sleep(1./240.) 
-
-    # 7. Disconnect when the loop ends (e.g., the window is closed)
-    p.disconnect()
+    for box in boxes:
+        box.create()
+    for sphere in spheres:
+        sphere.create()
+    # --- Set initial camera position ---
+    p.resetDebugVisualizerCamera(10, 50, -35, camera_pos)
+    return p
 
 if __name__ == "__main__":
-    run_simulation()
+    try:
+        while p.isConnected():
+            p.stepSimulation()  # Advance physics simulation
+            time.sleep(1./240.) # Run at real-time speed
+    except KeyboardInterrupt:
+        pass
+
+    p.disconnect()
