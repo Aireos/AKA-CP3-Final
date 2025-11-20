@@ -4,6 +4,7 @@
 import pybullet as p
 import time
 import pybullet_data
+import math # Import math library for sin and cos
 
 class Object:
     def __init__(self, mass=0.0, start_pos = [0,0,0], start_orientation = [0, 0, 0], color = [0,0,0]):
@@ -55,15 +56,16 @@ class Sphere(Object):
 
 def simulation(spheres_data_list, boxes_data_list, camera_pos):
     # --- Initialize PyBullet physics simulation ---
-    p.connect(p.GUI) # This MUST happen BEFORE creating any objects
+    window_title = "My Custom Simulation Window"
+    # Set the window title using the "--window_title" option
+    p.connect(p.GUI, options=f"--window_title={window_title}")
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    p.setGravity(0, 0, -9.81) # FIX: Use float instead of string for gravity
+    p.setGravity(0, 0, -9.81) 
 
     # --- Create ground plane ---
     plane_id = p.loadURDF("plane.urdf")
 
     # --- Create object instances using list unpacking after connection ---
-    # Data structure adjusted in __main__ to match __init__ signature (mass, pos, orientation, color, dim)
     spheres = [Sphere(*data) for data in spheres_data_list]
     boxes = [Box(*data) for data in boxes_data_list]
 
@@ -74,44 +76,109 @@ def simulation(spheres_data_list, boxes_data_list, camera_pos):
         sphere.create()
 
     # --- Set initial camera position ---
-    # FIX: Use float instead of string for camera pitch
     p.resetDebugVisualizerCamera(10, 50, -35, camera_pos)
-    return spheres, boxes # Return the objects themselves to use in main loop
+    return spheres, boxes 
 
-def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_distance):
+# Global variable to keep track of the text ID so we can replace it
+# Initialize to -1 to indicate no text item exists yet
+debug_text_id = -1 
+
+def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_distance, type):
+    global debug_text_id # Access the global variable
     keys = p.getKeyboardEvents()
     
-    # Camera rotation controls
-    # FIX: Use == instead of & to prevent TypeError when key is not pressed
-    if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN:
-        camera_yaw += 2.0
-    if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN:
-        camera_yaw -= 2.0
-    if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
-        camera_pitch += 2.0
-    if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
-        camera_pitch -= 2.0
+    # Define a consistent movement speed
+    move_speed = 0.125
     
-    # Camera target position controls
-    if keys.get(ord('w')) == p.KEY_IS_DOWN:
-        camera_target_pos[1] += 0.125
-    if keys.get(ord('s')) == p.KEY_IS_DOWN:
-        camera_target_pos[1] -= 0.125
-    if keys.get(ord('d')) == p.KEY_IS_DOWN:
-        camera_target_pos[0] += 0.125
-    if keys.get(ord('a')) == p.KEY_IS_DOWN:
-        camera_target_pos[0] -= 0.125
-    if keys.get(ord('r')) == p.KEY_IS_DOWN:
-        camera_target_pos[2] += 0.125
-    if keys.get(ord('f')) == p.KEY_IS_DOWN:
-        camera_target_pos[2] -= 0.125
+    # Convert camera_yaw to radians for math functions
+    yaw_rad = math.radians(camera_yaw)
+
+    if type == 1:
+        # Camera rotation controls (Yaw and Pitch)
+        if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN:
+            camera_yaw += 2.0
+        if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN:
+            camera_yaw -= 2.0
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
+            if camera_pitch < 88:
+                camera_pitch += 2.0
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
+            if camera_pitch > -88:
+                camera_pitch -= 2.0
+
+    elif type == 2:
+        # Camera target position controls (X and Y movement relative to camera yaw)
+        
+        # Calculate forward/backward movement components
+        forward_x = math.cos(yaw_rad) * move_speed
+        forward_y = math.sin(yaw_rad) * move_speed
+        
+        # Calculate left/right (strafe) movement components
+        # Strafe direction is yaw + 90 degrees (pi/2 radians)
+        strafe_x = math.cos(yaw_rad + math.pi/2) * move_speed
+        strafe_y = math.sin(yaw_rad + math.pi/2) * move_speed
+
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN: # Move Forward
+            camera_target_pos[0] += forward_x
+            camera_target_pos[1] += forward_y
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN: # Move Backward
+            camera_target_pos[0] -= forward_x
+            camera_target_pos[1] -= forward_y
+        if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN: # Strafe Right
+            camera_target_pos[0] += strafe_x
+            camera_target_pos[1] += strafe_y
+        if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN: # Strafe Left
+            camera_target_pos[0] -= strafe_x
+            camera_target_pos[1] -= strafe_y
+        
+
+    elif type == 3:
+        # Camera target position controls (Z axis / altitude)
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[2] += move_speed
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[2] -= move_speed
+
+    elif type == 4:
+        # Camera distance controls (zoom)
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
+            camera_distance -= 0.5
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
+            camera_distance += 0.5
     
-    # Camera distance controls (zoom)
-    if keys.get(ord('q')) == p.KEY_IS_DOWN:
-        camera_distance -= 0.5
-    if keys.get(ord('e')) == p.KEY_IS_DOWN:
-        camera_distance += 0.5
+    # Handle type switching keys outside the type-specific blocks
+    if keys.get(ord('j')) == p.KEY_IS_DOWN:
+        type = 1
+    if keys.get(ord('k')) == p.KEY_IS_DOWN:
+        type = 2
+    if keys.get(ord('n')) == p.KEY_IS_DOWN:
+        type = 3
+    if keys.get(ord('m')) == p.KEY_IS_DOWN:
+        type = 4
     
+    # Determine the text to display based on the current control mode
+    if type == 1:
+        controls_text = "Mode 1: Camera Rotation (Arrows: Yaw/Pitch)"
+    elif type == 2:
+        controls_text = "Mode 2: Target Position (Arrows: X/Y relative to view)"
+    elif type == 3:
+        controls_text = "Mode 3: Altitude (Up/Down Arrows: Z axis)"
+    elif type == 4:
+        controls_text = "Mode 4: Distance/Zoom (Up/Down Arrows: Zoom)"
+    else:
+        controls_text = "Unknown Mode"
+    
+    controls_text += " | Controls: J (Rot), K (Move XY), N (Move Z), M (Zoom)"
+
+    # Add or replace the debug text in the scene
+    debug_text_id = p.addUserDebugText(
+        text=controls_text,
+        textPosition=[-100, 10, 2], # Position the text above the origin
+        textColorRGB=[1, 1, 0], # Yellow text for visibility
+        lifeTime=0, 
+        replaceItemUniqueId=debug_text_id # Replace the existing text item
+    )
+
     # Apply all camera changes
     p.resetDebugVisualizerCamera(
         cameraDistance=camera_distance,
@@ -120,42 +187,38 @@ def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_d
         cameraTargetPosition=camera_target_pos
     )
     
-    return camera_target_pos, camera_yaw, camera_pitch, camera_distance
+    return camera_target_pos, camera_yaw, camera_pitch, camera_distance, type
 
 if __name__ == "__main__":
-    # Define initial camera target position (where the camera is looking)
-    initial_cam_target = [0, 0, 0]
-    try:
-        # Define data using lists with corrected order to match class __init__ signatures
-        # Order: mass, start_pos, start_orientation, color, dimension
-        sphere_params = [
-            [1.0, [1, 0, 7], [0, 0, 0], [0, 0, 1, 1], 0.5], # Blue sphere
-            [0.5, [2, 0, 10], [0, 0, 0], [0, 1, 0, 1], 1.0]  # Green sphere
-        ]
-        box_params = [
-            [1.0, [1, 0, 5], [0, 0, 0], [1, 0, 0, 1], [0.5, 0.5, 0.5]], # Red box
-            [0.5, [2, 0, 20], [0, 0, 0], [0, 1, 0, 1], [1, 0.2, 2]]   # Green box
-        ]
+    # Example simulation data for demonstration
+    spheres_data = [
+        # mass, pos, orientation (euler), color, radius
+        [1.0, [0, 0, 1], [0, 0, 0], [0.8, 0.1, 0.1, 1], 0.2]
+    ]
+    boxes_data = [
+         # mass, pos, orientation (euler), color, half_extents
+        [0.0, [0, 0, 0.5], [0, 0, 0], [0.5, 0.5, 0.8, 1], [0.1, 0.1, 0.1]]
+    ]
+    
+    initial_camera_target_pos = [0, 0, 0]
 
-        # Pass the lists of data to the simulation function, using the initial target pos
-        spheres, boxes = simulation(sphere_params, box_params, initial_cam_target)
+    # Start simulation (this calls p.connect())
+    spheres, boxes = simulation(spheres_data, boxes_data, initial_camera_target_pos)
 
-        # Initialize the mutable camera variables for use in the loop
-        cam_pos_target = initial_cam_target[:]
-        cam_yaw = 50  # Initial yaw
-        cam_pitch = -35  # Initial pitch
-        cam_distance = 10  # Initial distance
+    # Initialize camera variables for the loop
+    cam_target_pos = initial_camera_target_pos[:] # Use slice to copy list by value
+    cam_distance = 10
+    cam_yaw = 50
+    cam_pitch = -35
+    cam_type = 1 # Start in rotation mode
+
+    # --- Main simulation loop ---
+    while p.isConnected():
+        p.stepSimulation()
         
-        while p.isConnected():
-            p.stepSimulation()
-            # Handle camera movement input in every step
-            cam_pos_target, cam_yaw, cam_pitch, cam_distance = handle_camera_controls(
-                cam_pos_target, cam_yaw, cam_pitch, cam_distance
-            )
-            time.sleep(1./240.)
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        # Ensure disconnection happens even if loop is broken manually
-        p.disconnect()
+        # Handle camera updates
+        cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type = handle_camera_controls(
+            cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type
+        )
+        
+        time.sleep(1./240.) # Sleep to simulate a fixed time step
