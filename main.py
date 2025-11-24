@@ -118,16 +118,16 @@ def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_d
         strafe_x = math.cos(yaw_rad + math.pi/2) * move_speed
         strafe_y = math.sin(yaw_rad + math.pi/2) * move_speed
 
-        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN: # Move Forward
+        if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN: # Move Forward
             camera_target_pos[0] += forward_x
             camera_target_pos[1] += forward_y
-        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN: # Move Backward
+        if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN: # Move Backward
             camera_target_pos[0] -= forward_x
             camera_target_pos[1] -= forward_y
-        if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN: # Strafe Right
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN: # Strafe Right
             camera_target_pos[0] += strafe_x
             camera_target_pos[1] += strafe_y
-        if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN: # Strafe Left
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN: # Strafe Left
             camera_target_pos[0] -= strafe_x
             camera_target_pos[1] -= strafe_y
         
