@@ -1,4 +1,4 @@
-# CP3 Final with custom physics properties (Right-click editor + Camera)
+# CP3 Final with terminal-based object controls (No sliders, no selection)
 # pip install pybullet pybullet_data numpy
 
 import pybullet as p
@@ -6,6 +6,8 @@ import pybullet_data
 import time
 import math
 import numpy as np
+import threading
+import sys
 
 # -------------------------------
 # Object Classes
@@ -23,11 +25,6 @@ class Object:
 
     def create(self):
         pass
-
-    def change_dynamics(self, lateral_friction, restitution, linear_damping, angular_damping):
-        p.changeDynamics(self.body_id, -1, lateralFriction=lateral_friction,
-                         restitution=restitution, linearDamping=linear_damping,
-                         angularDamping=angular_damping)
 
 class Box(Object):
     def __init__(self, mass=0.0, start_pos=[0,0,0], start_orientation=[0,0,0], color=[1,1,1,1], half_extents=[0.1,0.1,0.1]):
@@ -74,247 +71,366 @@ def simulation(spheres_data_list, boxes_data_list, camera_pos):
 # -------------------------------
 # Camera Controls
 # -------------------------------
-debug_text_id = -1
 def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_distance, cam_type):
-    global debug_text_id
     keys = p.getKeyboardEvents()
     move_speed = 0.5
     yaw_rad = math.radians(camera_yaw)
 
-    if cam_type==1:
-        if keys.get(p.B3G_RIGHT_ARROW)==p.KEY_IS_DOWN: camera_yaw+=2
-        if keys.get(p.B3G_LEFT_ARROW)==p.KEY_IS_DOWN: camera_yaw-=2
-        if keys.get(p.B3G_DOWN_ARROW)==p.KEY_IS_DOWN and camera_pitch<88: camera_pitch+=2
-        if keys.get(p.B3G_UP_ARROW)==p.KEY_IS_DOWN and camera_pitch>-88: camera_pitch-=2
-    elif cam_type==2:
-        forward_x = math.cos(yaw_rad)*move_speed
-        forward_y = math.sin(yaw_rad)*move_speed
-        strafe_x = math.cos(yaw_rad+math.pi/2)*move_speed
-        strafe_y = math.sin(yaw_rad+math.pi/2)*move_speed
-        if keys.get(p.B3G_RIGHT_ARROW)==p.KEY_IS_DOWN: camera_target_pos[0]+=forward_x; camera_target_pos[1]+=forward_y
-        if keys.get(p.B3G_LEFT_ARROW)==p.KEY_IS_DOWN: camera_target_pos[0]-=forward_x; camera_target_pos[1]-=forward_y
-        if keys.get(p.B3G_UP_ARROW)==p.KEY_IS_DOWN: camera_target_pos[0]+=strafe_x; camera_target_pos[1]+=strafe_y
-        if keys.get(p.B3G_DOWN_ARROW)==p.KEY_IS_DOWN: camera_target_pos[0]-=strafe_x; camera_target_pos[1]-=strafe_y
-    elif cam_type==3:
-        if keys.get(p.B3G_UP_ARROW)==p.KEY_IS_DOWN: camera_target_pos[2]+=move_speed
-        if keys.get(p.B3G_DOWN_ARROW)==p.KEY_IS_DOWN: camera_target_pos[2]-=move_speed
-    elif cam_type==4:
-        if keys.get(p.B3G_UP_ARROW)==p.KEY_IS_DOWN: camera_distance-=0.5
-        if keys.get(p.B3G_DOWN_ARROW)==p.KEY_IS_DOWN: camera_distance+=0.5
+    if cam_type == 1:
+        # Orbit yaw/pitch
+        if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN:
+            camera_yaw += 2
+        if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN:
+            camera_yaw -= 2
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN and camera_pitch < 88:
+            camera_pitch += 2
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN and camera_pitch > -88:
+            camera_pitch -= 2
 
-    if keys.get(ord('j'))==p.KEY_IS_DOWN: cam_type=1
-    if keys.get(ord('k'))==p.KEY_IS_DOWN: cam_type=2
-    if keys.get(ord('n'))==p.KEY_IS_DOWN: cam_type=3
-    if keys.get(ord('m'))==p.KEY_IS_DOWN: cam_type=4
+    elif cam_type == 2:
+        # Pan in X-Y plane based on yaw
+        forward_x = math.cos(yaw_rad) * move_speed
+        forward_y = math.sin(yaw_rad) * move_speed
+        strafe_x = math.cos(yaw_rad + math.pi/2) * move_speed
+        strafe_y = math.sin(yaw_rad + math.pi/2) * move_speed
+        if keys.get(p.B3G_RIGHT_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[0] += forward_x
+            camera_target_pos[1] += forward_y
+        if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[0] -= forward_x
+            camera_target_pos[1] -= forward_y
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[0] += strafe_x
+            camera_target_pos[1] += strafe_y
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[0] -= strafe_x
+            camera_target_pos[1] -= strafe_y
 
-    if cam_type==1: txt="Camera Mode 1: Rotation (Arrows: Yaw/Pitch)"
-    elif cam_type==2: txt="Camera Mode 2: Target XY (Arrows)"
-    elif cam_type==3: txt="Camera Mode 3: Altitude (Up/Down)"
-    elif cam_type==4: txt="Camera Mode 4: Zoom (Up/Down)"
-    else: txt="Unknown Mode"
-    txt+=" | J/K/N/M to switch"
-    debug_text_id = p.addUserDebugText(txt,[-100,10,2],[1,1,0],0,replaceItemUniqueId=debug_text_id)
-    p.resetDebugVisualizerCamera(camera_distance,camera_yaw,camera_pitch,camera_target_pos)
+    elif cam_type == 3:
+        # Elevate
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[2] += move_speed
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
+            camera_target_pos[2] -= move_speed
+
+    elif cam_type == 4:
+        # Zoom
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
+            camera_distance -= 0.5
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
+            camera_distance += 0.5
+
+    # Change camera mode
+    if keys.get(ord('j')) == p.KEY_IS_DOWN:
+        cam_type = 1
+    if keys.get(ord('k')) == p.KEY_IS_DOWN:
+        cam_type = 2
+    if keys.get(ord('n')) == p.KEY_IS_DOWN:
+        cam_type = 3
+    if keys.get(ord('m')) == p.KEY_IS_DOWN:
+        cam_type = 4
+
+    p.resetDebugVisualizerCamera(camera_distance, camera_yaw, camera_pitch, camera_target_pos)
     return camera_target_pos, camera_yaw, camera_pitch, camera_distance, cam_type
 
 # -------------------------------
-# Object Selection & Highlight
+# Object Actions
 # -------------------------------
-selected_body = None
-highlight_body = None
-property_sliders = {}
-HIGHLIGHT_SCALE=1.05
+def change_properties():
+    bodies = p.getNumBodies()
 
-def clear_highlight():
-    global highlight_body
-    if highlight_body is not None:
-        try: p.removeBody(highlight_body)
-        except: pass
-        highlight_body=None
+    if bodies == 0:
+        print("No objects to edit.")
+        return
 
-def apply_highlight(body_id):
-    global highlight_body
-    clear_highlight()
-    visual = p.getVisualShapeData(body_id)
-    if not visual: return
-    shape = visual[0]
-    geom_type = shape[2]; dims = shape[3]
-    pos, orn = p.getBasePositionAndOrientation(body_id)
-    if geom_type==p.GEOM_BOX:
-        half_extents = [float(d)*HIGHLIGHT_SCALE for d in dims]
-        vs = p.createVisualShape(p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[1,1,0,0.3])
-    elif geom_type==p.GEOM_SPHERE:
-        radius = float(dims[0]) * HIGHLIGHT_SCALE
-        vs = p.createVisualShape(p.GEOM_SPHERE, radius=radius, rgbaColor=[1,1,0,0.3])
-    else: return
-    highlight_body = p.createMultiBody(baseMass=0, baseVisualShapeIndex=vs, baseCollisionShapeIndex=-1, basePosition=pos, baseOrientation=orn)
-
-def update_highlight_follow():
-    global highlight_body, selected_body
-    if selected_body is None or highlight_body is None: return
-    pos,orn=p.getBasePositionAndOrientation(selected_body)
-    p.resetBasePositionAndOrientation(highlight_body,pos,orn)
-
-def get_ray_from_mouse(mouse_x, mouse_y):
-    cam_info = p.getDebugVisualizerCamera()
-    if cam_info is None: return [0,0,0],[0,0,0]
-    w = cam_info[0]; h = cam_info[1]
-    viewMat = np.array(cam_info[2]).reshape(4,4)
-    projMat = np.array(cam_info[3]).reshape(4,4)
-    camTarget = np.array(cam_info[10])
-    camPos = np.array(cam_info[11])
-    x_ndc = (mouse_x / float(w) - 0.5) * 2.0
-    y_ndc = - (mouse_y / float(h) - 0.5) * 2.0
-    ray_clip = np.array([x_ndc, y_ndc, -1.0, 1.0])
+    body_number = input("Enter body number to edit: ")
     try:
-        inv_proj = np.linalg.inv(projMat)
-        ray_eye = inv_proj.dot(ray_clip)
-        ray_eye = np.array([ray_eye[0], ray_eye[1], -1.0, 0.0])
-        inv_view = np.linalg.inv(viewMat)
-        ray_world = inv_view.dot(ray_eye)[0:3]
-        ray_world = ray_world / np.linalg.norm(ray_world)
-    except:
-        ray_world = camTarget - camPos
-        norm = np.linalg.norm(ray_world)
-        ray_world = ray_world / norm if norm>1e-6 else np.array([0,0,1])
-    ray_start = camPos.tolist()
-    ray_end = (camPos + ray_world*1000).tolist()
-    return ray_start, ray_end
+        body_number = int(body_number)
+    except ValueError:
+        print("Invalid body number.")
+        return
 
-def handle_object_selection():
-    global selected_body
-    events = p.getMouseEvents()
-    for e in events:
-        # Debug print to confirm events
-        # print("Mouse Event:", e)
-        print("Mouse Event:", e)
-        button = e[3]
-        state = e[4]
-        mouseX = e[1]
-        mouseY = e[2]
-        if button == 2 and state in (p.KEY_WAS_TRIGGERED, p.KEY_IS_DOWN):
-            ray_start, ray_end = get_ray_from_mouse(mouseX, mouseY)
-            hit = p.rayTest(ray_start, ray_end)[0]
-            hit_body = hit[0]
-            if hit_body >= 0:
-                selected_body = hit_body
-                apply_highlight(hit_body)
-                create_property_sliders(hit_body)
-                print("Selected body:", hit_body)
+    if body_number < 0 or body_number >= bodies:
+        print("Body number out of range.")
+        return
+
+    dyn_info = p.getDynamicsInfo(body_number, -1)
+    current_mass = dyn_info[0]
+    is_static = (current_mass == 0.0)
+
+    print("Enter new properties (leave blank to keep current value, type 'reset' to set to base value):")
+
+    # -------- Mass --------
+    base_mass = current_mass  # treat current as "base"
+    mass_input = input(f"New mass (current/base: {base_mass}): ")
+
+    if mass_input == 'reset':
+        # For safety, don't try to revert to some unknown original; just leave as‑is.
+        print(f"Mass left at {base_mass} (no reset behavior for safety).")
+    elif mass_input:
+        try:
+            new_mass = float(mass_input)
+            if is_static and new_mass != 0.0:
+                print("Warning: Converting a static object (mass=0) to dynamic can destabilize the simulation.")
+                print("If you really want a dynamic copy, duplicate the object, then edit the duplicate's mass.")
+            else:
+                p.changeDynamics(body_number, -1, mass=new_mass)
+                print(f"Mass updated to {new_mass}.")
+                current_mass = new_mass
+                is_static = (new_mass == 0.0)
+        except ValueError:
+            print("Invalid mass value.")
+
+    # -------- Color --------
+    visual = p.getVisualShapeData(body_number)
+    if visual:
+        current_color = visual[0][7]
+    else:
+        current_color = [1, 1, 1, 1]
+
+    color_input = input(f"New color (r,g,b,a) (current: {current_color}): ")
+    if color_input == 'reset':
+        p.changeVisualShape(body_number, -1, rgbaColor=[1, 1, 1, 1])
+        print("Color reset to [1, 1, 1, 1].")
+    elif color_input:
+        try:
+            r, g, b, a = map(float, color_input.split(','))
+            p.changeVisualShape(body_number, -1, rgbaColor=[r, g, b, a])
+            print(f"Color updated to [{r}, {g}, {b}, {a}].")
+        except ValueError:
+            print("Invalid color value.")
+
+    # -------- Lateral Friction --------
+    base_lateral_friction = p.getDynamicsInfo(body_number, -1)[1]
+    lateral_friction_input = input(f"New lateral friction (current: {base_lateral_friction}): ")
+    if lateral_friction_input == 'reset':
+        p.changeDynamics(body_number, -1, lateralFriction=0.5)
+        print("Lateral friction reset to 0.5.")
+    elif lateral_friction_input:
+        try:
+            new_friction = float(lateral_friction_input)
+            p.changeDynamics(body_number, -1, lateralFriction=new_friction)
+            print(f"Lateral friction updated to {new_friction}.")
+        except ValueError:
+            print("Invalid lateral friction value.")
+
+    # -------- Rolling Friction --------
+    base_rolling_friction = p.getDynamicsInfo(body_number, -1)[2]
+    rolling_friction_input = input(f"New rolling friction (current: {base_rolling_friction}): ")
+    if rolling_friction_input == 'reset':
+        p.changeDynamics(body_number, -1, rollingFriction=0.1)
+        print("Rolling friction reset to 0.1.")
+    elif rolling_friction_input:
+        try:
+            new_rolling_friction = float(rolling_friction_input)
+            p.changeDynamics(body_number, -1, rollingFriction=new_rolling_friction)
+            print(f"Rolling friction updated to {new_rolling_friction}.")
+        except ValueError:
+            print("Invalid rolling friction value.")
+
+    # -------- Spinning Friction --------
+    base_spinning_friction = p.getDynamicsInfo(body_number, -1)[3]
+    spinning_friction_input = input(f"New spinning friction (current: {base_spinning_friction}): ")
+    if spinning_friction_input == 'reset':
+        p.changeDynamics(body_number, -1, spinningFriction=0.1)
+        print("Spinning friction reset to 0.1.")
+    elif spinning_friction_input:
+        try:
+            new_spinning_friction = float(spinning_friction_input)
+            p.changeDynamics(body_number, -1, spinningFriction=new_spinning_friction)
+            print(f"Spinning friction updated to {new_spinning_friction}.")
+        except ValueError:
+            print("Invalid spinning friction value.")
+
+    # -------- Linear Damping --------
+    base_linear_damping = p.getDynamicsInfo(body_number, -1)[4]
+    linear_damping_input = input(f"New linear damping (current: {base_linear_damping}): ")
+    if linear_damping_input == 'reset':
+        p.changeDynamics(body_number, -1, linearDamping=0.0)
+        print("Linear damping reset to 0.0.")
+    elif linear_damping_input:
+        try:
+            new_linear_damping = float(linear_damping_input)
+            p.changeDynamics(body_number, -1, linearDamping=new_linear_damping)
+            print(f"Linear damping updated to {new_linear_damping}.")
+        except ValueError:
+            print("Invalid linear damping value.")
+
+    # -------- Angular Damping --------
+    base_angular_damping = p.getDynamicsInfo(body_number, -1)[5]
+    angular_damping_input = input(f"New angular damping (current: {base_angular_damping}): ")
+    if angular_damping_input == 'reset':
+        p.changeDynamics(body_number, -1, angularDamping=0.0)
+        print("Angular damping reset to 0.0.")
+    elif angular_damping_input:
+        try:
+            new_angular_damping = float(angular_damping_input)
+            p.changeDynamics(body_number, -1, angularDamping=new_angular_damping)
+            print(f"Angular damping updated to {new_angular_damping}.")
+        except ValueError:
+            print("Invalid angular damping value.")
+
+def list_all_bodies():
+    bodies = p.getNumBodies()
+    if bodies == 0:
+        print("No objects in the simulation.")
+        return
+
+    print("\n--- List of Objects ---")
+    for i in range(bodies):
+        pos, orn = p.getBasePositionAndOrientation(i)
+        mass = p.getDynamicsInfo(i, -1)[0]
+        color = p.getVisualShapeData(i)[0][7] if p.getVisualShapeData(i) else [1,1,1,1]
+        print(f"Body #:{i} Position: {pos} Orientation: {p.getEulerFromQuaternion(orn)} Mass: {mass} Color: {color} Size: {p.getCollisionShapeData(i, -1)[0][3]}")
+
+def duplicate_object():
+    bodies = p.getNumBodies()
+
+    if bodies == 0:
+        print("No objects to duplicate.")
+        return
+    
+    body_number = input("Enter body number to duplicate (or blank for last object): ")
+
+    if body_number == "":
+        body_number = bodies - 1
+    else:
+        try:
+            body_number = int(body_number)
+        except ValueError:
+            print("Invalid body number.")
+            return
+
+    if body_number < 0 or body_number >= bodies:
+        print("Body number out of range.")
+        return
+
+    # Get pose & mass
+    pos, orn = p.getBasePositionAndOrientation(body_number)
+    mass = p.getDynamicsInfo(body_number, -1)[0]
+
+    # Get visual shape data (for color)
+    visual_shape_data = p.getVisualShapeData(body_number)
+    color = visual_shape_data[0][7] if visual_shape_data else [1,1,1,1]
+
+    # Get collision shape data for base link (-1)
+    col_shape_data = p.getCollisionShapeData(body_number, -1)
+    if not col_shape_data:
+        print("No collision shape data found; cannot duplicate.")
+        return
+
+    shape_info = col_shape_data[0]
+    shape_type = shape_info[2]
+    dimensions = shape_info[3]  # Size parameters
+
+    # Convert orientation to Euler for constructors
+    euler_orn = p.getEulerFromQuaternion(orn)
+
+    # Use a fixed small offset to avoid overlap
+    offset_value = 0.2
+    if shape_type == p.GEOM_BOX:
+        offset = [offset_value, offset_value, offset_value]
+        new_pos = [pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2]]
+        half_extents = list(dimensions)
+        new_obj = Box(
+            mass=mass,
+            start_pos=new_pos,
+            start_orientation=euler_orn,
+            color=color,
+            half_extents=half_extents
+        )
+    elif shape_type == p.GEOM_SPHERE:
+        radius = float(dimensions[0])
+        new_pos = [pos[0] + offset_value, pos[1], pos[2]]
+        new_obj = Sphere(
+            mass=mass,
+            start_pos=new_pos,
+            start_orientation=euler_orn,
+            color=color,
+            radius=radius
+        )
+    else:
+        print(f"Unsupported shape type ({shape_type}) for duplication.")
+        return
+
+    new_body_id = new_obj.create()
+    print(f"Duplicated object {body_number} as new object (id: {new_body_id}, mass={mass}).")
+
+def create_new_box():
+    box = Box(1,[0,0,1],[0,0,0],[1,1,1,1],[0.2,0.2,0.2])
+    box.create()
+    print("Created new box.")
+
+def create_new_sphere():
+    sphere = Sphere(1,[0,0,1],[0,0,0],[1,1,1,1],0.2)
+    sphere.create()
+    print("Created new sphere.")
 
 # -------------------------------
-# Property Sliders
+# Terminal Menu Thread
 # -------------------------------
-def clear_property_sliders():
-    global property_sliders
-    for s in property_sliders.values():
-        try: p.removeUserDebugItem(s)
-        except: pass
-    property_sliders = {}
+def terminal_menu():
+    while True:
+        print("\n--- Terminal Options ---")
+        print("1. Duplicate object")
+        print("2. Create new box")
+        print("3. Create new sphere")
+        print("4. List all objects")
+        print("5. Edit object properties")
+        print("6. List controls")
+        print("7. Exit simulation")
+        choice = input("> ")
 
-def create_property_sliders(body_id):
-    global property_sliders
-    clear_property_sliders()
-    info = p.getDynamicsInfo(body_id, -1)
-    mass = info[0] if len(info)>0 else 1.0
-    friction = info[1] if len(info)>1 else 0.5
-    restitution = info[5] if len(info)>5 else 0.0
-    lin_damping = info[6] if len(info)>6 else 0.0
-    ang_damping = info[7] if len(info)>7 else 0.0
-    vis = p.getVisualShapeData(body_id)
-    color = [1,1,1,1]
-    if vis: color = list(vis[0][7])
-    property_sliders["friction"] = p.addUserDebugParameter("Friction",0,5,friction)
-    property_sliders["restitution"] = p.addUserDebugParameter("Restitution",0,1,restitution)
-    property_sliders["lin_damping"] = p.addUserDebugParameter("Linear Damping",0,1,lin_damping)
-    property_sliders["ang_damping"] = p.addUserDebugParameter("Angular Damping",0,1,ang_damping)
-    property_sliders["R"] = p.addUserDebugParameter("Color R",0,1,color[0])
-    property_sliders["G"] = p.addUserDebugParameter("Color G",0,1,color[1])
-    property_sliders["B"] = p.addUserDebugParameter("Color B",0,1,color[2])
-    property_sliders["A"] = p.addUserDebugParameter("Color A",0,1,color[3])
-    property_sliders["duplicate"] = p.addUserDebugParameter("Duplicate Object",0,1,0)
-    property_sliders["new_box"] = p.addUserDebugParameter("Create Box",0,1,0)
-    property_sliders["new_sphere"] = p.addUserDebugParameter("Create Sphere",0,1,0)
-    property_sliders["ok"] = p.addUserDebugParameter("OK",0,1,0)
-
-def update_object_from_sliders():
-    global selected_body
-    if selected_body is None or not property_sliders: return
-    s = property_sliders
-    friction = p.readUserDebugParameter(s["friction"])
-    restitution = p.readUserDebugParameter(s["restitution"])
-    lin_damping = p.readUserDebugParameter(s["lin_damping"])
-    ang_damping = p.readUserDebugParameter(s["ang_damping"])
-    R = p.readUserDebugParameter(s["R"])
-    G = p.readUserDebugParameter(s["G"])
-    B = p.readUserDebugParameter(s["B"])
-    A = p.readUserDebugParameter(s["A"])
-    try:
-        p.changeDynamics(selected_body, -1, lateralFriction=friction,
-                         restitution=restitution, linearDamping=lin_damping,
-                         angularDamping=ang_damping)
-        p.changeVisualShape(selected_body, -1, rgbaColor=[R,G,B,A])
-    except: pass
-
-def handle_duplication_and_creation():
-    global property_sliders, selected_body
-    if not property_sliders or selected_body is None: return
-    s = property_sliders
-    try:
-        if p.readUserDebugParameter(s["duplicate"])>0.5:
-            pos,orn = p.getBasePositionAndOrientation(selected_body)
-            pos = [pos[0]+0.2,pos[1],pos[2]+0.2]
-            vis = p.getVisualShapeData(selected_body)
-            if not vis: return
-            vis0 = vis[0]; shape_type = vis0[2]; dims = vis0[3]; color = list(vis0[7])
-            if shape_type==p.GEOM_BOX:
-                new = Box(1,pos,[0,0,0],color,list(dims))
-            elif shape_type==p.GEOM_SPHERE:
-                new = Sphere(1,pos,[0,0,0],color,float(dims[0]))
-            else: new=None
-            if new: new.create(); print("Duplicated object")
-            property_sliders["duplicate"]=p.addUserDebugParameter("Duplicate Object",0,1,0)
-    except: pass
-
-    try:
-        if p.readUserDebugParameter(s["new_box"])>0.5:
-            new = Box(1,[0,0,1],[0,0,0],[1,1,1,1],[0.2,0.2,0.2])
-            new.create(); print("Created new box")
-            property_sliders["new_box"]=p.addUserDebugParameter("Create Box",0,1,0)
-    except: pass
-
-    try:
-        if p.readUserDebugParameter(s["new_sphere"])>0.5:
-            new = Sphere(1,[0,0,1],[0,0,0],[1,1,1,1],0.2)
-            new.create(); print("Created new sphere")
-            property_sliders["new_sphere"]=p.addUserDebugParameter("Create Sphere",0,1,0)
-    except: pass
-
-    try:
-        if p.readUserDebugParameter(s["ok"])>0.5:
-            clear_property_sliders()
-            clear_highlight()
-            selected_body=None
-    except: pass
+        if choice == "1":
+            duplicate_object()
+        elif choice == "2":
+            create_new_box()
+        elif choice == "3":
+            create_new_sphere()
+        elif choice == "4":
+            list_all_bodies()
+        elif choice == "5":
+            change_properties()
+        elif choice == "6":
+            print("\n--- Camera Controls ---")
+            print("Arrow Keys: Move camera based on mode")
+            print("j: Switch to Orbit Mode")
+            print("k: Switch to Pan Mode")
+            print("n: Switch to Elevate Mode")
+            print("m: Switch to Zoom Mode")
+        elif choice == "7":
+            print("Closing simulation.")
+            p.disconnect()
+            return
+        else:
+            print("Invalid option.")
 
 # -------------------------------
 # Main
 # -------------------------------
 if __name__=="__main__":
-    spheres_data=[[1.0,[0,0,1],[0,0,0],[0.8,0.1,0.1,1],0.2]]
-    boxes_data=[[0.0,[0,0,0.5],[0,0,0],[0.5,0.5,0.8,1],[0.1,0.1,0.1]]]
-    cam_target_pos=[0,0,0]
+    spheres_data = [
+        [1.0, [0,0,1], [0,0,0], [0.8,0.1,0.1,1], 0.2]
+    ]
+    boxes_data = [
+        [1.0, [0,0,0.5], [0,0,0], [0.5,0.5,0.8,1], [0.1,0.1,0.1]]
+    ]
+    cam_target_pos = [0,0,0]
 
     simulation(spheres_data, boxes_data, cam_target_pos)
 
-    cam_distance=10; cam_yaw=50; cam_pitch=-35; cam_type=1
+    cam_distance = 10
+    cam_yaw = 50
+    cam_pitch = -35
+    cam_type = 1
 
+    # Start terminal input thread
+    threading.Thread(target=terminal_menu, daemon=True).start()
+
+    # Main loop
     while p.isConnected():
-        handle_object_selection()
-        update_highlight_follow()
-        update_object_from_sliders()
-        handle_duplication_and_creation()
         cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type = handle_camera_controls(
             cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type)
+
         p.stepSimulation()
         time.sleep(1./240.)
