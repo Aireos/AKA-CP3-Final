@@ -1,11 +1,11 @@
 # CP3 Final with terminal-based object controls (No sliders, no selection)
 # pip install pybullet pybullet_data numpy
 
-import pybullet as p
-import pybullet_data
+import pybullet as p #type: ignore
+import pybullet_data #type: ignore
 import time
 import math
-import numpy as np
+import numpy as np #type: ignore
 import threading
 import sys
 
@@ -38,14 +38,16 @@ class Box(Object):
         return self.body_id
 
 class Sphere(Object):
-    def __init__(self, mass=0.0, start_pos=[0,0,0], start_orientation=[0,0,0], color=[0,0,0,1], radius=0.1):
-        super().__init__(mass, start_pos, start_orientation, color)
+    def __init__(self, mass=0.0, start_pos=[0,0,0], color=[0,0,0,1], radius=0.1):
+        # Removed start_orientation parameter
+        super().__init__(mass, start_pos, [0, 0, 0], color)
         self.radius = radius
 
     def create(self):
         col_shape_id = p.createCollisionShape(p.GEOM_SPHERE, radius=self.radius)
         vis_shape_id = p.createVisualShape(p.GEOM_SPHERE, radius=self.radius, rgbaColor=self.color)
-        self.body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos, self.start_orientation)
+        # Use default orientation [0,0,0,1]
+        self.body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos, [0, 0, 0, 1])
         return self.body_id
 
 # -------------------------------
@@ -57,7 +59,7 @@ def simulation(spheres_data_list, boxes_data_list, camera_pos):
     p.setGravity(0,0,-9.81)
     p.loadURDF("plane.urdf")
 
-    spheres = [Sphere(*data) for data in spheres_data_list]
+    spheres = [Sphere(mass, start_pos, color, radius) for (mass, start_pos, color, radius) in spheres_data_list]
     boxes = [Box(*data) for data in boxes_data_list]
 
     for box in boxes:
@@ -146,7 +148,7 @@ def change_properties():
     body_number = input("Enter body number to edit: ")
     try:
         body_number = int(body_number)
-    except ValueError:
+    except:
         print("Invalid body number.")
         return
 
@@ -154,121 +156,118 @@ def change_properties():
         print("Body number out of range.")
         return
 
+    # Get current properties
     dyn_info = p.getDynamicsInfo(body_number, -1)
     current_mass = dyn_info[0]
     is_static = (current_mass == 0.0)
 
-    print("Enter new properties (leave blank to keep current value, type 'reset' to set to base value):")
+    print("Enter new properties (leave blank to keep current value, type 'reset' to set to default):")
 
     # -------- Mass --------
-    base_mass = current_mass  # treat current as "base"
+    base_mass = current_mass
     mass_input = input(f"New mass (current/base: {base_mass}): ")
-
     if mass_input == 'reset':
-        # For safety, don't try to revert to some unknown original; just leave as‑is.
-        print(f"Mass left at {base_mass} (no reset behavior for safety).")
+        print(f"Mass left at {base_mass}")
     elif mass_input:
         try:
             new_mass = float(mass_input)
-            if is_static and new_mass != 0.0:
+            if is_static and new_mass != 0:
                 print("Warning: Converting a static object (mass=0) to dynamic can destabilize the simulation.")
-                print("If you really want a dynamic copy, duplicate the object, then edit the duplicate's mass.")
-            else:
-                p.changeDynamics(body_number, -1, mass=new_mass)
-                print(f"Mass updated to {new_mass}.")
-                current_mass = new_mass
-                is_static = (new_mass == 0.0)
-        except ValueError:
+            p.changeDynamics(body_number, -1, mass=new_mass)
+            print(f"Mass updated to {new_mass}")
+        except:
             print("Invalid mass value.")
 
-    # -------- Color --------
+    # -------- Visual Color --------
     visual = p.getVisualShapeData(body_number)
     if visual:
-        current_color = visual[0][7]
+        color_tuple = visual[0][7]
+        color_str = f"{color_tuple[0]:.2f},{color_tuple[1]:.2f},{color_tuple[2]:.2f},{color_tuple[3]:.2f}"
     else:
-        current_color = [1, 1, 1, 1]
-
-    color_input = input(f"New color (r,g,b,a) (current: {current_color}): ")
+        color_str = "1.00,1.00,1.00,1.00"
+    color_input = input(f"New color (r,g,b,a) (current: {color_str}): ")
     if color_input == 'reset':
         p.changeVisualShape(body_number, -1, rgbaColor=[1, 1, 1, 1])
-        print("Color reset to [1, 1, 1, 1].")
+        print("Color reset to [1, 1, 1, 1]")
     elif color_input:
         try:
             r, g, b, a = map(float, color_input.split(','))
             p.changeVisualShape(body_number, -1, rgbaColor=[r, g, b, a])
-            print(f"Color updated to [{r}, {g}, {b}, {a}].")
-        except ValueError:
-            print("Invalid color value.")
+            print(f"Color updated to [{r}, {g}, {b}, {a}]")
+        except:
+            print("Invalid color input.")
 
-    # -------- Lateral Friction --------
-    base_lateral_friction = p.getDynamicsInfo(body_number, -1)[1]
-    lateral_friction_input = input(f"New lateral friction (current: {base_lateral_friction}): ")
-    if lateral_friction_input == 'reset':
+    # -------- Friction and Damping --------
+
+    # Lateral Friction
+    lateral_friction = p.getDynamicsInfo(body_number, -1)[1]
+    lat_input = input(f"New lateral friction (or 'reset') (current: {lateral_friction:.2f}): ")
+    if lat_input == 'reset':
         p.changeDynamics(body_number, -1, lateralFriction=0.5)
-        print("Lateral friction reset to 0.5.")
-    elif lateral_friction_input:
+        print("Lateral friction reset to 0.50")
+    elif lat_input:
         try:
-            new_friction = float(lateral_friction_input)
-            p.changeDynamics(body_number, -1, lateralFriction=new_friction)
-            print(f"Lateral friction updated to {new_friction}.")
-        except ValueError:
-            print("Invalid lateral friction value.")
+            val = float(lat_input)
+            p.changeDynamics(body_number, -1, lateralFriction=val)
+            print(f"Lateral Friction updated to {val}")
+        except:
+            print("Invalid input.")
 
-    # -------- Rolling Friction --------
-    base_rolling_friction = p.getDynamicsInfo(body_number, -1)[2]
-    rolling_friction_input = input(f"New rolling friction (current: {base_rolling_friction}): ")
-    if rolling_friction_input == 'reset':
+    # Rolling Friction
+    rolling_friction = p.getDynamicsInfo(body_number, -1)[2]
+    roll_input = input(f"New rolling friction (or 'reset') (current: {rolling_friction}): ")
+    if roll_input == 'reset':
         p.changeDynamics(body_number, -1, rollingFriction=0.1)
-        print("Rolling friction reset to 0.1.")
-    elif rolling_friction_input:
+        print("Rolling friction reset to 0.10")
+    elif roll_input:
         try:
-            new_rolling_friction = float(rolling_friction_input)
-            p.changeDynamics(body_number, -1, rollingFriction=new_rolling_friction)
-            print(f"Rolling friction updated to {new_rolling_friction}.")
-        except ValueError:
-            print("Invalid rolling friction value.")
+            val = float(roll_input)
+            p.changeDynamics(body_number, -1, rollingFriction=val)
+            print(f"Rolling Friction updated to {val}")
+        except:
+            print("Invalid input.")
 
-    # -------- Spinning Friction --------
-    base_spinning_friction = p.getDynamicsInfo(body_number, -1)[3]
-    spinning_friction_input = input(f"New spinning friction (current: {base_spinning_friction}): ")
-    if spinning_friction_input == 'reset':
+    # Spinning Friction
+    spinning_friction = p.getDynamicsInfo(body_number, -1)[3]
+    spin_input = input(f"New spinning friction (or 'reset') (current: {spinning_friction}): ")
+    if spin_input == 'reset':
         p.changeDynamics(body_number, -1, spinningFriction=0.1)
-        print("Spinning friction reset to 0.1.")
-    elif spinning_friction_input:
+        print("Spinning friction reset to 0.10")
+    elif spin_input:
         try:
-            new_spinning_friction = float(spinning_friction_input)
-            p.changeDynamics(body_number, -1, spinningFriction=new_spinning_friction)
-            print(f"Spinning friction updated to {new_spinning_friction}.")
-        except ValueError:
-            print("Invalid spinning friction value.")
+            val = float(spin_input)
+            p.changeDynamics(body_number, -1, spinningFriction=val)
+            print(f"Spinning Friction updated to {val}")
+        except:
+            print("Invalid input.")
 
     # -------- Linear Damping --------
-    base_linear_damping = p.getDynamicsInfo(body_number, -1)[4]
-    linear_damping_input = input(f"New linear damping (current: {base_linear_damping}): ")
-    if linear_damping_input == 'reset':
+    linear_damping = p.getDynamicsInfo(body_number, -1)[4]
+    ld_input = input(f"New linear damping (or 'reset') (current: {linear_damping}): ")
+    if ld_input == 'reset':
         p.changeDynamics(body_number, -1, linearDamping=0.0)
-        print("Linear damping reset to 0.0.")
-    elif linear_damping_input:
+        print("Linear damping reset to 0.00")
+    elif ld_input:
         try:
-            new_linear_damping = float(linear_damping_input)
-            p.changeDynamics(body_number, -1, linearDamping=new_linear_damping)
-            print(f"Linear damping updated to {new_linear_damping}.")
-        except ValueError:
-            print("Invalid linear damping value.")
+            val = float(ld_input)
+            p.changeDynamics(body_number, -1, linearDamping=val)
+            print(f"Linear Damping updated to {val}")
+        except:
+            print("Invalid input.")
 
     # -------- Angular Damping --------
-    base_angular_damping = p.getDynamicsInfo(body_number, -1)[5]
-    angular_damping_input = input(f"New angular damping (current: {base_angular_damping}): ")
-    if angular_damping_input == 'reset':
+    angular_damping = p.getDynamicsInfo(body_number, -1)[5]
+    ad_input = input(f"New angular damping (or 'reset') (current: {angular_damping:}): ")
+    if ad_input == 'reset':
         p.changeDynamics(body_number, -1, angularDamping=0.0)
-        print("Angular damping reset to 0.0.")
-    elif angular_damping_input:
+        print("Angular damping reset to 0.00")
+    elif ad_input:
         try:
-            new_angular_damping = float(angular_damping_input)
-            p.changeDynamics(body_number, -1, angularDamping=new_angular_damping)
-            print(f"Angular damping updated to {new_angular_damping}.")
-        except ValueError:
-            print("Invalid angular damping value.")
+            val = float(ad_input)
+            p.changeDynamics(body_number, -1, angularDamping=val)
+            print(f"Angular Damping updated to {val}")
+        except:
+            print("Invalid input.")
 
 def list_all_bodies():
     bodies = p.getNumBodies()
@@ -281,7 +280,7 @@ def list_all_bodies():
         pos, orn = p.getBasePositionAndOrientation(i)
         mass = p.getDynamicsInfo(i, -1)[0]
         color = p.getVisualShapeData(i)[0][7] if p.getVisualShapeData(i) else [1,1,1,1]
-        print(f"Body #:{i} Position: {pos} Orientation: {p.getEulerFromQuaternion(orn)} Mass: {mass} Color: {color} Size: {p.getCollisionShapeData(i, -1)[0][3]}")
+        print(f"Body #:{i}\nPosition:{pos}\nOrientation: {p.getEulerFromQuaternion(orn)}\nMass: {mass}\nColor: {color}\nSize: {p.getCollisionShapeData(i, -1)[0][3]}")
 
 def duplicate_object():
     bodies = p.getNumBodies()
@@ -331,7 +330,7 @@ def duplicate_object():
     if shape_type == p.GEOM_BOX:
         offset = [offset_value, offset_value, offset_value]
         new_pos = [pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2]]
-        half_extents = list(dimensions)
+        half_extents = [d / 2 for d in dimensions]
         new_obj = Box(
             mass=mass,
             start_pos=new_pos,
@@ -345,7 +344,6 @@ def duplicate_object():
         new_obj = Sphere(
             mass=mass,
             start_pos=new_pos,
-            start_orientation=euler_orn,
             color=color,
             radius=radius
         )
@@ -357,12 +355,185 @@ def duplicate_object():
     print(f"Duplicated object {body_number} as new object (id: {new_body_id}, mass={mass}).")
 
 def create_new_box():
-    box = Box(1,[0,0,1],[0,0,0],[1,1,1,1],[0.2,0.2,0.2])
+    # x position
+    x_posisition = input("Enter x position for new box (default 0): ")
+    if x_posisition == "":
+        x_posisition = 0.0
+    else:
+        try:
+            x_posisition = float(x_posisition)
+        except:
+            print("Invalid x position. Using default 0.")
+            x_posisition = 0.0
+    # y position
+    y_position = input("Enter y position for new box (default 0): ")
+    if y_position == "":
+        y_position = 0.0
+    else:
+        try:
+            y_position = float(y_position)
+        except:
+            print("Invalid y position. Using default 0.")
+            y_position = 0.0
+    # z position
+    z_position = input("Enter z position for new box (default 1): ")
+    if z_position == "":
+        z_position = 1.0
+    else:
+        try:
+            z_position = float(z_position)
+        except:
+            print("Invalid z position. Using default 1.")
+            z_position = 1.0
+    # color
+    color = input("Enter color for new box (r,g,b,a) (default 0.2,0.2,0.2,1): ")
+    if color == "":
+        color = [0.2,0.2,0.2,1]
+    else:
+        try:
+            r, g, b, a = map(float, color.split(','))
+            color = [r, g, b, a]
+        except:
+            print("Invalid color. Using default [0.2,0.2,0.2,1].")
+            color = [0.2,0.2,0.2,1]
+    # pitch
+    pitch = input("Enter pitch for new box in degrees (default 0): ")
+    if pitch == "":
+        pitch = 0.0
+    else:
+        try:
+            pitch = float(pitch)
+        except:
+            print("Invalid pitch. Using default 0.")
+            pitch = 0.0
+    # roll
+    roll = input("Enter roll for new box in degrees (default 0): ")
+    if roll == "":
+        roll = 0.0
+    else:
+        try:
+            roll = float(roll)
+        except:
+            print("Invalid roll. Using default 0.")
+            roll = 0.0
+    # yaw
+    yaw = input("Enter yaw for new box in degrees (default 0): ")
+    if yaw == "":
+        yaw = 0.0
+    else:
+        try:
+            yaw = float(yaw)
+        except:
+            print("Invalid yaw. Using default 0.")
+            yaw = 0.0
+    # length
+    length = input("Enter box length (default 0.2): ")
+    if length == "":
+        length = 0.2
+    else:
+        try:
+            length = float(length)
+        except:
+            print("Invalid length. Using default 0.2.")
+            length = 0.2
+    # width
+    width = input("Enter box width (default 0.2): ")
+    if width == "":
+        width = 0.2
+    else:
+        try:
+            width = float(width)
+        except:
+            print("Invalid width. Using default 0.2.")
+            width = 0.2
+    # height
+    height = input("Enter box height (default 0.2): ")
+    if height == "":
+        height = 0.2
+    else:
+        try:
+            height = float(height)
+        except:
+            print("Invalid height. Using default 0.2.")
+            height = 0.2
+    # mass
+    mass = input("Enter mass for new box (default 1): ")
+    if mass == "":
+        mass = 1.0
+    else:
+        try:
+            mass = float(mass)
+        except:
+            print("Invalid mass. Using default 1.")
+            mass = 1.0
+
+    box = Box(mass,[x_posisition,y_position,z_position],[math.radians(roll),math.radians(pitch),math.radians(yaw)],color,[length/2,width/2,height/2])
     box.create()
     print("Created new box.")
 
 def create_new_sphere():
-    sphere = Sphere(1,[0,0,1],[0,0,0],[1,1,1,1],0.2)
+    # radius
+    radius = input("Enter radius for new sphere (default 0.2): ")
+    if radius == "":
+        radius = 0.2
+    else:
+        try:
+            radius = float(radius)
+        except:
+            print("Invalid radius. Using default 0.2.")
+            radius = 0.2
+    # mass
+    mass = input("Enter mass for new sphere (default 1): ")
+    if mass == "":
+        mass = 1.0
+    else:
+        try:
+            mass = float(mass)
+        except:
+            print("Invalid mass. Using default 1.")
+            mass = 1.0
+    # position x
+    x_position = input("Enter x position for new sphere (default 0): ")
+    if x_position == "":
+        x_position = 0.0
+    else:
+        try:
+            x_position = float(x_position)
+        except:
+            print("Invalid x position. Using default 0.")
+            x_position = 0.0
+    # position y
+    y_position = input("Enter y position for new sphere (default 0): ")
+    if y_position == "":
+        y_position = 0.0
+    else:
+        try:
+            y_position = float(y_position)
+        except:
+            print("Invalid y position. Using default 0.")
+            y_position = 0.0
+    # position z
+    z_position = input("Enter z position for new sphere (default 1): ")
+    if z_position == "":
+        z_position = 1.0
+    else:
+        try:
+            z_position = float(z_position)
+        except:
+            print("Invalid z position. Using default 1.")
+            z_position = 1.0
+    # color
+    color = input("Enter color for new sphere (r,g,b,a) (default 0.2,0.2,0.2,1): ")
+    if color == "":
+        color = [0.2,0.2,0.2,1]
+    else:
+        try:
+            r, g, b, a = map(float, color.split(','))
+            color = [r, g, b, a]
+        except:
+            print("Invalid color. Using default [0.2,0.2,0.2,1].")
+            color = [0.2,0.2,0.2,1]
+    sphere = Sphere(mass,[x_position,y_position,z_position],color,radius)
     sphere.create()
     print("Created new sphere.")
 
@@ -410,7 +581,7 @@ def terminal_menu():
 # -------------------------------
 if __name__=="__main__":
     spheres_data = [
-        [1.0, [0,0,1], [0,0,0], [0.8,0.1,0.1,1], 0.2]
+    [1.0, [0, 0, 1], [0.8, 0.1, 0.1, 1], 0.2]
     ]
     boxes_data = [
         [1.0, [0,0,0.5], [0,0,0], [0.5,0.5,0.8,1], [0.1,0.1,0.1]]
