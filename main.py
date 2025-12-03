@@ -138,136 +138,84 @@ def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_d
 # -------------------------------
 # Object Actions
 # -------------------------------
-def change_properties():
-    bodies = p.getNumBodies()
+# Define default values for properties
+rolling_friction = 0.1
+spinning_friction = 0.1
+linear_damping = 0.0
+angular_damping = 0.0
 
+def change_properties():
+    global rolling_friction, spinning_friction, linear_damping, angular_damping
+
+    bodies = p.getNumBodies()
     if bodies == 0:
         print("No objects to edit.")
         return
 
-    body_number = input("Enter body number to edit: ")
-    try:
-        body_number = int(body_number)
-    except:
-        print("Invalid body number.")
-        return
-
+    body_number = int(input("Enter body number to edit: "))
     if body_number < 0 or body_number >= bodies:
         print("Body number out of range.")
         return
 
-    # Get current properties
+    # Get current info
     dyn_info = p.getDynamicsInfo(body_number, -1)
-    current_mass = dyn_info[0]
-    is_static = (current_mass == 0.0)
-
-    print("Enter new properties (leave blank to keep current value, type 'reset' to set to default):")
 
     # -------- Mass --------
-    base_mass = current_mass
-    mass_input = input(f"New mass (current/base: {base_mass}): ")
-    if mass_input == 'reset':
-        print(f"Mass left at {base_mass}")
-    elif mass_input:
-        try:
-            new_mass = float(mass_input)
-            if is_static and new_mass != 0:
-                print("Warning: Converting a static object (mass=0) to dynamic can destabilize the simulation.")
-            p.changeDynamics(body_number, -1, mass=new_mass)
-            print(f"Mass updated to {new_mass}")
-        except:
-            print("Invalid mass value.")
-
-    # -------- Visual Color --------
-    visual = p.getVisualShapeData(body_number)
-    if visual:
-        color_tuple = visual[0][7]
-        color_str = f"{color_tuple[0]:.2f},{color_tuple[1]:.2f},{color_tuple[2]:.2f},{color_tuple[3]:.2f}"
-    else:
-        color_str = "1.00,1.00,1.00,1.00"
-    color_input = input(f"New color (r,g,b,a) (current: {color_str}): ")
-    if color_input == 'reset':
-        p.changeVisualShape(body_number, -1, rgbaColor=[1, 1, 1, 1])
-        print("Color reset to [1, 1, 1, 1]")
-    elif color_input:
-        try:
-            r, g, b, a = map(float, color_input.split(','))
-            p.changeVisualShape(body_number, -1, rgbaColor=[r, g, b, a])
-            print(f"Color updated to [{r}, {g}, {b}, {a}]")
-        except:
-            print("Invalid color input.")
-
-    # -------- Friction and Damping --------
-
-    # Lateral Friction
-    lateral_friction = p.getDynamicsInfo(body_number, -1)[1]
-    lat_input = input(f"New lateral friction (or 'reset') (current: {lateral_friction:.2f}): ")
-    if lat_input == 'reset':
-        p.changeDynamics(body_number, -1, lateralFriction=0.5)
-        print("Lateral friction reset to 0.50")
-    elif lat_input:
-        try:
-            val = float(lat_input)
-            p.changeDynamics(body_number, -1, lateralFriction=val)
-            print(f"Lateral Friction updated to {val}")
-        except:
-            print("Invalid input.")
-
-    # Rolling Friction
-    rolling_friction = p.getDynamicsInfo(body_number, -1)[2]
-    roll_input = input(f"New rolling friction (or 'reset') (current: {rolling_friction}): ")
-    if roll_input == 'reset':
+    new_mass = input(f"Mass (current: {dyn_info[0]}): ")
+    if new_mass == 'reset':
+        p.changeDynamics(body_number, -1, mass=1.0)
+        print("Mass reset to 1.0")
+    elif new_mass:
+        p.changeDynamics(body_number, -1, mass=float(new_mass))
+        print(f"Mass updated to {new_mass}")
+    print()
+    # -------- Lateral Friction --------
+    lat = input(f"Lateral Friction (current: {dyn_info[1]}): ")
+    if lat:
+        p.changeDynamics(body_number, -1, lateralFriction=float(lat))
+        print(f"Lateral Friction updated to {lat}")
+    print()
+    # -------- Rolling Friction --------
+    rf = input(f"Rolling Friction (current: {rolling_friction}): ")
+    if rf == 'reset':
         p.changeDynamics(body_number, -1, rollingFriction=0.1)
-        print("Rolling friction reset to 0.10")
-    elif roll_input:
-        try:
-            val = float(roll_input)
-            p.changeDynamics(body_number, -1, rollingFriction=val)
-            print(f"Rolling Friction updated to {val}")
-        except:
-            print("Invalid input.")
-
-    # Spinning Friction
-    spinning_friction = p.getDynamicsInfo(body_number, -1)[3]
-    spin_input = input(f"New spinning friction (or 'reset') (current: {spinning_friction}): ")
-    if spin_input == 'reset':
+        print(f"Rolling Friction reset to {0.1}")
+    elif rf:
+        val = float(rf)
+        p.changeDynamics(body_number, -1, rollingFriction=val)
+        print(f"Rolling Friction updated to {val}")
+    print()
+    # -------- Spinning Friction --------
+    sf = input(f"Spinning Friction (current: {spinning_friction}): ")
+    if sf == 'reset':
         p.changeDynamics(body_number, -1, spinningFriction=0.1)
-        print("Spinning friction reset to 0.10")
-    elif spin_input:
-        try:
-            val = float(spin_input)
-            p.changeDynamics(body_number, -1, spinningFriction=val)
-            print(f"Spinning Friction updated to {val}")
-        except:
-            print("Invalid input.")
-
+        print(f"Spinning Friction reset to {0.1}")
+    elif sf:
+        val = float(sf)
+        p.changeDynamics(body_number, -1, spinningFriction=val)
+        print(f"Spinning Friction updated to {val}")
+    print()
     # -------- Linear Damping --------
-    linear_damping = p.getDynamicsInfo(body_number, -1)[4]
-    ld_input = input(f"New linear damping (or 'reset') (current: {linear_damping}): ")
-    if ld_input == 'reset':
+    print(f"Linear Damping (current: {linear_damping})")
+    ld = input(f"New Linear Damping: ")
+    if ld == 'reset':
         p.changeDynamics(body_number, -1, linearDamping=0.0)
-        print("Linear damping reset to 0.00")
-    elif ld_input:
-        try:
-            val = float(ld_input)
-            p.changeDynamics(body_number, -1, linearDamping=val)
-            print(f"Linear Damping updated to {val}")
-        except:
-            print("Invalid input.")
-
+        print(f"Linear Damping reset to {0.0}")
+    elif ld:
+        val = float(ld)
+        p.changeDynamics(body_number, -1, linearDamping=val)
+        print(f"Linear Damping updated to {val}")
+    print()
     # -------- Angular Damping --------
-    angular_damping = p.getDynamicsInfo(body_number, -1)[5]
-    ad_input = input(f"New angular damping (or 'reset') (current: {angular_damping:}): ")
-    if ad_input == 'reset':
+    print(f"Angular Damping (current: {angular_damping})")
+    ad = input(f"New Angular Damping: ")
+    if ad == 'reset':
         p.changeDynamics(body_number, -1, angularDamping=0.0)
-        print("Angular damping reset to 0.00")
-    elif ad_input:
-        try:
-            val = float(ad_input)
-            p.changeDynamics(body_number, -1, angularDamping=val)
-            print(f"Angular Damping updated to {val}")
-        except:
-            print("Invalid input.")
+        print(f"Angular Damping reset to {0.0}")
+    elif ad:
+        val = float(ad)
+        p.changeDynamics(body_number, -1, angularDamping=val)
+        print(f"Angular Damping updated to {val}")
 
 def list_all_bodies():
     bodies = p.getNumBodies()
