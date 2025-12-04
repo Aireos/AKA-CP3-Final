@@ -5,9 +5,7 @@ import pybullet as p #type: ignore
 import pybullet_data #type: ignore
 import time
 import math
-import numpy as np #type: ignore
 import threading
-import sys
 
 # -------------------------------
 # Object Classes
@@ -136,16 +134,24 @@ def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_d
     return camera_target_pos, camera_yaw, camera_pitch, camera_distance, cam_type
 
 # -------------------------------
-# Object Actions
+# Object Propertys
 # -------------------------------
 # Define default values for properties
-rolling_friction = 0.1
-spinning_friction = 0.1
-linear_damping = 0.0
-angular_damping = 0.0
+# mass
+m = 1.0
+# lateral friction
+lf = 0.5
+# rolling friction
+rf = 0.1
+# spinning friction
+sf = 0.1
+# linear damping
+ld = 0.0
+# angular damping
+ad = 0.0
 
 def change_properties():
-    global rolling_friction, spinning_friction, linear_damping, angular_damping
+    global m, lf, rf, sf, ld, ad
 
     bodies = p.getNumBodies()
     if bodies == 0:
@@ -157,65 +163,74 @@ def change_properties():
         print("Body number out of range.")
         return
 
-    # Get current info
-    dyn_info = p.getDynamicsInfo(body_number, -1)
-
     # -------- Mass --------
-    new_mass = input(f"Mass (current: {dyn_info[0]}): ")
-    if new_mass == 'reset':
+    nm = input(f"Mass (current: {m}): ")
+    if nm == 'reset':
         p.changeDynamics(body_number, -1, mass=1.0)
         print("Mass reset to 1.0")
-    elif new_mass:
-        p.changeDynamics(body_number, -1, mass=float(new_mass))
-        print(f"Mass updated to {new_mass}")
+    elif nm:
+        m = float(nm)
+        p.changeDynamics(body_number, -1, mass=float(m))
+        print(f"Mass updated to {m}")
     print()
+
     # -------- Lateral Friction --------
-    lat = input(f"Lateral Friction (current: {dyn_info[1]}): ")
-    if lat:
-        p.changeDynamics(body_number, -1, lateralFriction=float(lat))
-        print(f"Lateral Friction updated to {lat}")
+    nlf = input(f"Lateral Friction (current: {lf}): ")
+    if nlf == 'reset':
+        p.changeDynamics(body_number, -1, lateralFriction=0.5)
+        print(f"Lateral Friction reset to {0.5}")
+    elif nlf:
+        lf = float(nlf)
+        p.changeDynamics(body_number, -1, lateralFriction=float(lf))
+        print(f"Lateral Friction updated to {lf}")
     print()
+
     # -------- Rolling Friction --------
-    rf = input(f"Rolling Friction (current: {rolling_friction}): ")
-    if rf == 'reset':
+    nrf = input(f"Rolling Friction (current: {rf}): ")
+    if nrf == 'reset':
         p.changeDynamics(body_number, -1, rollingFriction=0.1)
         print(f"Rolling Friction reset to {0.1}")
-    elif rf:
-        val = float(rf)
-        p.changeDynamics(body_number, -1, rollingFriction=val)
-        print(f"Rolling Friction updated to {val}")
+    elif nrf:
+        rf = float(nrf)
+        p.changeDynamics(body_number, -1, rollingFriction=rf)
+        print(f"Rolling Friction updated to {rf}")
     print()
+
     # -------- Spinning Friction --------
-    sf = input(f"Spinning Friction (current: {spinning_friction}): ")
-    if sf == 'reset':
+    nsf = input(f"Spinning Friction (current: {sf}): ")
+    if nsf == 'reset':
         p.changeDynamics(body_number, -1, spinningFriction=0.1)
         print(f"Spinning Friction reset to {0.1}")
-    elif sf:
-        val = float(sf)
-        p.changeDynamics(body_number, -1, spinningFriction=val)
-        print(f"Spinning Friction updated to {val}")
+    elif nsf:
+        sf = float(nsf)
+        p.changeDynamics(body_number, -1, spinningFriction=sf)
+        print(f"Spinning Friction updated to {sf}")
     print()
+
     # -------- Linear Damping --------
-    print(f"Linear Damping (current: {linear_damping})")
-    ld = input(f"New Linear Damping: ")
-    if ld == 'reset':
+    nld = input(f"Lateral Damping (current: {ld}): ")
+    if nld == 'reset':
         p.changeDynamics(body_number, -1, linearDamping=0.0)
         print(f"Linear Damping reset to {0.0}")
-    elif ld:
-        val = float(ld)
-        p.changeDynamics(body_number, -1, linearDamping=val)
-        print(f"Linear Damping updated to {val}")
+    elif nld:
+        ld = float(nld)
+        p.changeDynamics(body_number, -1, linearDamping=ld)
+        print(f"Linear Damping updated to {ld}")
     print()
+
     # -------- Angular Damping --------
-    print(f"Angular Damping (current: {angular_damping})")
-    ad = input(f"New Angular Damping: ")
-    if ad == 'reset':
+    nad = input(f"Angular Damping (current: {ad}): ")
+    if nad == 'reset':
         p.changeDynamics(body_number, -1, angularDamping=0.0)
         print(f"Angular Damping reset to {0.0}")
-    elif ad:
-        val = float(ad)
-        p.changeDynamics(body_number, -1, angularDamping=val)
-        print(f"Angular Damping updated to {val}")
+    elif nad:
+        ad = float(nad)
+        p.changeDynamics(body_number, -1, angularDamping=ad)
+        print(f"Angular Damping updated to {ad}")
+
+# -------------------------------
+# Bodies
+# -------------------------------
 
 def list_all_bodies():
     bodies = p.getNumBodies()
@@ -229,6 +244,10 @@ def list_all_bodies():
         mass = p.getDynamicsInfo(i, -1)[0]
         color = p.getVisualShapeData(i)[0][7] if p.getVisualShapeData(i) else [1,1,1,1]
         print(f"Body #:{i}\nPosition:{pos}\nOrientation: {p.getEulerFromQuaternion(orn)}\nMass: {mass}\nColor: {color}\nSize: {p.getCollisionShapeData(i, -1)[0][3]}")
+
+# -------------------------------
+# Body Duplication
+# -------------------------------
 
 def duplicate_object():
     bodies = p.getNumBodies()
@@ -301,6 +320,10 @@ def duplicate_object():
 
     new_body_id = new_obj.create()
     print(f"Duplicated object {body_number} as new object (id: {new_body_id}, mass={mass}).")
+
+# -------------------------------
+# Create New Bodys
+# -------------------------------
 
 def create_new_box():
     # x position
