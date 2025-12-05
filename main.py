@@ -119,7 +119,8 @@ def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_d
     elif cam_type == 4:
         # Zoom
         if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:
-            camera_distance -= 0.5
+            if camera_distance > 0.5:
+                camera_distance -= 0.5
         if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
             camera_distance += 0.5
 
@@ -436,7 +437,9 @@ def terminal_menu():
         print("4. List all objects")
         print("5. Edit object properties")
         print("6. List controls")
-        print("7. Exit simulation")
+        print("7. Import shapes")
+        print("8. Export shapes")
+        print("9. Exit simulation")
         choice = input("> ")
 
         if choice == "1":
@@ -459,6 +462,10 @@ def terminal_menu():
             print("n: Switch to Elevate Mode")
             print("m: Switch to Zoom Mode")
         elif choice == "7":
+            print("Import shapes functionality not implemented.")
+        elif choice == "8":
+            print("Export shapes functionality not implemented.")
+        elif choice == "9":
             print("Closing simulation.")
             p.disconnect()
             return
