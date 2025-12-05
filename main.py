@@ -7,9 +7,6 @@ import time
 import math
 import threading
 
-# Initialize the event for duplication synchronization
-duplication_done_event = threading.Event()
-
 # -------------------------------
 # Object Classes
 # -------------------------------
@@ -40,22 +37,20 @@ class Box(Object):
 
 class Sphere(Object):
     def __init__(self, mass=0.0, start_pos=[0,0,0], color=[0,0,0,1], radius=0.1):
-        # Removed start_orientation parameter
         super().__init__(mass, start_pos, [0, 0, 0], color)
         self.radius = radius
 
     def create(self):
         col_shape_id = p.createCollisionShape(p.GEOM_SPHERE, radius=self.radius)
         vis_shape_id = p.createVisualShape(p.GEOM_SPHERE, radius=self.radius, rgbaColor=self.color)
-        # Use default orientation [0,0,0,1]
         self.body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos, [0, 0, 0, 1])
         return self.body_id
 
 # -------------------------------
 # Simulation Setup
 # -------------------------------
-def simulation(spheres_data_list, boxes_data_list, camera_pos):
-    p.connect(p.GUI, options="--window_title=Custom Simulation")
+def simulation_startup(spheres_data_list, boxes_data_list, camera_pos):
+    p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0,0,-9.81)
     p.loadURDF("plane.urdf")
@@ -74,7 +69,7 @@ def simulation(spheres_data_list, boxes_data_list, camera_pos):
 # -------------------------------
 # Camera Controls
 # -------------------------------
-def handle_camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_distance, cam_type):
+def camera_controls(camera_target_pos, camera_yaw, camera_pitch, camera_distance, cam_type):
     keys = p.getKeyboardEvents()
     move_speed = 0.5
     yaw_rad = math.radians(camera_yaw)
@@ -258,6 +253,9 @@ def list_all_bodies():
 # -------------------------------
 # Body Duplication
 # -------------------------------
+
+# Initialize the event for duplication synchronization
+duplication_done_event = threading.Event()
 
 def duplicate_object():
     global duplication_done_event
@@ -542,15 +540,15 @@ def terminal_menu():
 # Main
 # -------------------------------
 if __name__=="__main__":
-    spheres_data = [
+    base_sphere_data = [
         [1.0, [0, 0, 1], [0.8, 0.1, 0.1, 1], 0.2]
     ]
-    boxes_data = [
+    base_box_data = [
         [1.0, [0,0,0.5], [0,0,0], [0.5,0.5,0.8,1], [0.1,0.1,0.1]]
     ]
-    cam_target_pos = [0,0,0]
+    starting_cam_target_pos = [0,0,0]
 
-    simulation(spheres_data, boxes_data, cam_target_pos)
+    simulation_startup(base_sphere_data, base_box_data, starting_cam_target_pos)
 
     cam_distance = 10
     cam_yaw = 50
@@ -563,8 +561,7 @@ if __name__=="__main__":
     # Main loop
     while p.isConnected():
         try:
-            cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type = handle_camera_controls(
-                cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type)
+            cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type = camera_controls(cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type)
         except:
             pass
 
