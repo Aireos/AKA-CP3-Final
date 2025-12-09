@@ -1,4 +1,4 @@
-# main.py
+# AKA Final
 import pybullet as p
 import time
 import threading

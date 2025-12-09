@@ -1,5 +1,9 @@
 # properties.py
 import pybullet as p
+from shapes import Box, Sphere
+import threading
+
+lock = threading.Lock()
 
 def change_properties():
     bodies = p.getNumBodies()
@@ -18,75 +22,61 @@ def change_properties():
         print("Body number out of range.")
         return
 
-    # Read current properties dynamically
+    # Get current info
     dyn_info = p.getDynamicsInfo(body_number, -1)
     mass = dyn_info[0]
-    lateral_friction = dyn_info[1]
-    rolling_friction = dyn_info[2]
-    spinning_friction = dyn_info[3]
-    linear_damping = dyn_info[6]
-    angular_damping = dyn_info[7]
+
+    vis_data = p.getVisualShapeData(body_number)[0]
+    color = vis_data[7]
+
+    col_data = p.getCollisionShapeData(body_number, -1)[0]
+    shape_type = col_data[2]
+    dimensions = col_data[3]
 
     try:
-        # Mass
+        # --- Mass ---
         nm = input(f"Mass (current: {mass}): ")
-        if nm.lower() == 'reset':
-            p.changeDynamics(body_number, -1, mass=1.0)
-            print("Mass reset to 1.0")
-        elif nm:
+        if nm:
             mass = float(nm)
             p.changeDynamics(body_number, -1, mass=mass)
             print(f"Mass updated to {mass}")
 
-        # Lateral friction
-        nlf = input(f"Lateral Friction (current: {lateral_friction}): ")
-        if nlf.lower() == 'reset':
-            p.changeDynamics(body_number, -1, lateralFriction=0.5)
-            print("Lateral Friction reset to 0.5")
-        elif nlf:
-            lateral_friction = float(nlf)
-            p.changeDynamics(body_number, -1, lateralFriction=lateral_friction)
-            print(f"Lateral Friction updated to {lateral_friction}")
+        # --- Color ---
+        color_input = input(f"Color (r,g,b,a) (current: {color}): ")
+        if color_input:
+            try:
+                r, g, b, a = map(float, color_input.split(','))
+                color = [r, g, b, a]
+                with lock:
+                    p.changeVisualShape(body_number, -1, rgbaColor=color)
+                print(f"Color updated to {color}")
+            except:
+                print("Invalid color input. Skipping.")
 
-        # Rolling friction
-        nrf = input(f"Rolling Friction (current: {rolling_friction}): ")
-        if nrf.lower() == 'reset':
-            p.changeDynamics(body_number, -1, rollingFriction=0.1)
-            print("Rolling Friction reset to 0.1")
-        elif nrf:
-            rolling_friction = float(nrf)
-            p.changeDynamics(body_number, -1, rollingFriction=rolling_friction)
-            print(f"Rolling Friction updated to {rolling_friction}")
-
-        # Spinning friction
-        nsf = input(f"Spinning Friction (current: {spinning_friction}): ")
-        if nsf.lower() == 'reset':
-            p.changeDynamics(body_number, -1, spinningFriction=0.1)
-            print("Spinning Friction reset to 0.1")
-        elif nsf:
-            spinning_friction = float(nsf)
-            p.changeDynamics(body_number, -1, spinningFriction=spinning_friction)
-            print(f"Spinning Friction updated to {spinning_friction}")
-
-        # Linear damping
-        nld = input(f"Linear Damping (current: {linear_damping}): ")
-        if nld.lower() == 'reset':
-            p.changeDynamics(body_number, -1, linearDamping=0.0)
-            print("Linear Damping reset to 0.0")
-        elif nld:
-            linear_damping = float(nld)
-            p.changeDynamics(body_number, -1, linearDamping=linear_damping)
-            print(f"Linear Damping updated to {linear_damping}")
-
-        # Angular damping
-        nad = input(f"Angular Damping (current: {angular_damping}): ")
-        if nad.lower() == 'reset':
-            p.changeDynamics(body_number, -1, angularDamping=0.0)
-            print("Angular Damping reset to 0.0")
-        elif nad:
-            angular_damping = float(nad)
-            p.changeDynamics(body_number, -1, angularDamping=angular_damping)
-            print(f"Angular Damping updated to {angular_damping}")
-
+        # --- Size ---
+        with lock:
+            if shape_type == p.GEOM_BOX:
+                size_input = input(f"Type x,y,z values (current: {dimensions}): ")
+                # Box expects halfExtents
+                try:
+                    x, y, z = map(float, size_input.split(','))
+                    half_extents = [x/2, y/2, z/2]
+                    # Recreate box
+                    pos, orn = p.getBasePositionAndOrientation(body_number)
+                    p.removeBody(body_number)
+                    Box(mass, pos, p.getEulerFromQuaternion(orn), color, half_extents).create()
+                    print(f"Box size updated to {x},{y},{z}")
+                except:
+                    print("Invalid box size input. Skipping.")
+            elif shape_type == p.GEOM_SPHERE:
+                size_input = input(f"Type r value (current: {dimensions[0]}): ")
+                try:
+                    radius = float(size_input)
+                    pos, orn = p.getBasePositionAndOrientation(body_number)
+                    p.removeBody(body_number)
+                    Sphere(mass, pos, color, radius).create()
+                    print(f"Sphere radius updated to {radius}")
+                except:
+                    print("Invalid sphere size input. Skipping.")
     except Exception as e:
         print(f"Error updating properties: {e}")
