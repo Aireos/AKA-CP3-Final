@@ -1,118 +1,144 @@
-# Object classes
+"""
+shapes.py - Defines shape classes (Box, Sphere) and helper functions
+to create new shapes from terminal input.
+"""
+from typing import List, Tuple
 
-import pybullet as p #type: ignore
-import pybullet_data #type: ignore
-import time
 import math
-import threading
+import pybullet as p #type: ignore
 
-# from simulation import *
-# from camera import *
-# from properties import *
-# from bodies import *
-# from files import *
 
-class Object:
-    def __init__(self, mass=0.0, start_pos=[0,0,0], start_orientation=[0,0,0], color=[0,0,0,1]):
-        self.mass = mass
-        self.start_pos = start_pos
-        if isinstance(start_orientation, (list,tuple)):
+class SimObject:
+    """Base class for objects placed into the PyBullet world."""
+
+    def __init__(
+        self,
+        mass: float = 0.0,
+        start_pos: List[float] = None,
+        start_orientation: List[float] = None,
+        color: List[float] = None,
+    ) -> None:
+        self.mass = float(mass)
+        self.start_pos = start_pos or [0.0, 0.0, 0.0]
+        # Accept Euler angles or quaternion; convert Euler to quaternion
+        if start_orientation is None:
+            self.start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
+        elif isinstance(start_orientation, (list, tuple)) and len(start_orientation) == 3:
             self.start_orientation = p.getQuaternionFromEuler(start_orientation)
         else:
             self.start_orientation = start_orientation
-        self.color = color
+        self.color = color or [0.5, 0.5, 0.5, 1.0]
         self.body_id = None
 
-    def create(self):
-        pass
+    def create(self) -> int:
+        """Create the object in PyBullet and return its body id."""
+        raise NotImplementedError
 
-class Box(Object):
-    def __init__(self, mass=0.0, start_pos=[0,0,0], start_orientation=[0,0,0], color=[1,1,1,1], half_extents=[0.1,0.1,0.1]):
+
+class Box(SimObject):
+    """Axis-aligned box defined by half extents."""
+
+    def __init__(
+        self,
+        mass: float = 1.0,
+        start_pos: List[float] = None,
+        start_orientation: List[float] = None,
+        color: List[float] = None,
+        half_extents: List[float] = None,
+    ) -> None:
         super().__init__(mass, start_pos, start_orientation, color)
-        self.half_extents = half_extents
+        self.half_extents = half_extents or [0.1, 0.1, 0.1]
 
-    def create(self):
-        col_shape_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=self.half_extents)
-        vis_shape_id = p.createVisualShape(p.GEOM_BOX, halfExtents=self.half_extents, rgbaColor=self.color)
-        self.body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos, self.start_orientation)
+    def create(self) -> int:
+        col_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=self.half_extents)
+        vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=self.half_extents, rgbaColor=self.color)
+        self.body_id = p.createMultiBody(
+            self.mass, col_id, vis_id, self.start_pos, self.start_orientation
+        )
         return self.body_id
 
-class Sphere(Object):
-    def __init__(self, mass=0.0, start_pos=[0,0,0], color=[0,0,0,1], radius=0.1):
-        super().__init__(mass, start_pos, [0, 0, 0], color)
-        self.radius = radius
 
-    def create(self):
-        col_shape_id = p.createCollisionShape(p.GEOM_SPHERE, radius=self.radius)
-        vis_shape_id = p.createVisualShape(p.GEOM_SPHERE, radius=self.radius, rgbaColor=self.color)
-        self.body_id = p.createMultiBody(self.mass, col_shape_id, vis_shape_id, self.start_pos, [0, 0, 0, 1])
+class Sphere(SimObject):
+    """Sphere defined by radius."""
+
+    def __init__(
+        self,
+        mass: float = 1.0,
+        start_pos: List[float] = None,
+        color: List[float] = None,
+        radius: float = 0.1,
+    ) -> None:
+        super().__init__(mass, start_pos, [0.0, 0.0, 0.0], color)
+        self.radius = float(radius)
+
+    def create(self) -> int:
+        col_id = p.createCollisionShape(p.GEOM_SPHERE, radius=self.radius)
+        vis_id = p.createVisualShape(p.GEOM_SPHERE, radius=self.radius, rgbaColor=self.color)
+        self.body_id = p.createMultiBody(self.mass, col_id, vis_id, self.start_pos, self.start_orientation)
         return self.body_id
-    
-def create_new_box():
-    def safe_float_input(prompt, default):
+
+
+# Helper functions used by the terminal menu to create new objects
+def _safe_float(prompt: str, default: float) -> float:
+    val = input(prompt)
+    if val == "":
+        return default
+    try:
+        return float(val)
+    except ValueError:
+        print("Invalid number; using default:", default)
+        return default
+
+
+def create_new_box() -> None:
+    """Interactive creation of a new box (called from terminal menu)."""
+    x = _safe_float("Enter x position (default 0): ", 0.0)
+    y = _safe_float("Enter y position (default 0): ", 0.0)
+    z = _safe_float("Enter z position (default 1): ", 1.0)
+    roll = _safe_float("Roll degrees (default 0): ", 0.0)
+    pitch = _safe_float("Pitch degrees (default 0): ", 0.0)
+    yaw = _safe_float("Yaw degrees (default 0): ", 0.0)
+    length = _safe_float("Length (default 0.2): ", 0.2)
+    width = _safe_float("Width (default 0.2): ", 0.2)
+    height = _safe_float("Height (default 0.2): ", 0.2)
+    mass = _safe_float("Mass (default 1): ", 1.0)
+    color_str = input("Color r,g,b,a (default 0.2,0.2,0.2,1): ")
+    if color_str:
         try:
-            val = input(prompt)
-            return float(val) if val != "" else default
-        except:
-            print(f"Invalid input. Using default {default}.")
-            return default
-
-    # gather inputs with error handling
-    x_posisition = safe_float_input("Enter x position for new box (default 0): ", 0)
-    y_position = safe_float_input("Enter y position for new box (default 0): ", 0)
-    z_position = safe_float_input("Enter z position for new box (default 1): ", 1)
-    color_input = input("Enter color for new box (r,g,b,a) (default 0.2,0.2,0.2,1): ")
-    if color_input == "":
-        color = [0.2,0.2,0.2,1]
+            color = [float(x) for x in color_str.split(",")]
+            if len(color) != 4:
+                raise ValueError
+        except Exception:
+            print("Invalid color; using default.")
+            color = [0.2, 0.2, 0.2, 1.0]
     else:
-        try:
-            r, g, b, a = map(float, color_input.split(','))
-            color = [r, g, b, a]
-        except:
-            print("Invalid color. Using default [0.2,0.2,0.2,1].")
-            color = [0.2,0.2,0.2,1]
-    pitch = safe_float_input("Enter pitch for new box in degrees (default 0): ", 0)
-    roll = safe_float_input("Enter roll for new box in degrees (default 0): ", 0)
-    yaw = safe_float_input("Enter yaw for new box in degrees (default 0): ", 0)
-    length = safe_float_input("Enter box length (default 0.2): ", 0.2)
-    width = safe_float_input("Enter box width (default 0.2): ", 0.2)
-    height = safe_float_input("Enter box height (default 0.2): ", 0.2)
-    mass = safe_float_input("Enter mass for new box (default 1): ", 1)
+        color = [0.2, 0.2, 0.2, 1.0]
 
-    box = Box(
-        mass, 
-        [x_posisition, y_position, z_position],
-        [math.radians(roll), math.radians(pitch), math.radians(yaw)],
-        color, 
-        [length/2, width/2, height/2]
-    )
+    half_extents = [length / 2.0, width / 2.0, height / 2.0]
+    box = Box(mass, [x, y, z], [math.radians(roll), math.radians(pitch), math.radians(yaw)], color, half_extents)
     box.create()
-    print("Created new box.")
+    print("New box created.")
 
-def create_new_sphere():
-    def safe_float_input(prompt, default):
+
+def create_new_sphere() -> None:
+    """Interactive creation of a new sphere (called from terminal menu)."""
+    radius = _safe_float("Radius (default 0.2): ", 0.2)
+    mass = _safe_float("Mass (default 1): ", 1.0)
+    x = _safe_float("x (default 0): ", 0.0)
+    y = _safe_float("y (default 0): ", 0.0)
+    z = _safe_float("z (default 1): ", 1.0)
+    color_str = input("Color r,g,b,a (default 0.2,0.2,0.2,1): ")
+    if color_str:
         try:
-            val = input(prompt)
-            return float(val) if val != "" else default
-        except:
-            print(f"Invalid input. Using default {default}.")
-            return default
-
-    radius = safe_float_input("Enter radius for new sphere (default 0.2): ", 0.2)
-    mass = safe_float_input("Enter mass for new sphere (default 1): ", 1)
-    x_position = safe_float_input("Enter x position for new sphere (default 0): ", 0)
-    y_position = safe_float_input("Enter y position for new sphere (default 0): ", 0)
-    z_position = safe_float_input("Enter z position for new sphere (default 1): ", 1)
-    color_input = input("Enter color for new sphere (r,g,b,a) (default 0.2,0.2,0.2,1): ")
-    if color_input == "":
-        color = [0.2,0.2,0.2,1]
+            color = [float(c) for c in color_str.split(",")]
+            if len(color) != 4:
+                raise ValueError
+        except Exception:
+            print("Invalid color; using default.")
+            color = [0.2, 0.2, 0.2, 1.0]
     else:
-        try:
-            r, g, b, a = map(float, color_input.split(','))
-            color = [r, g, b, a]
-        except:
-            print("Invalid color. Using default [0.2,0.2,0.2,1].")
-            color = [0.2,0.2,0.2,1]
-    sphere = Sphere(mass, [x_position, y_position, z_position], color, radius)
+        color = [0.2, 0.2, 0.2, 1.0]
+
+    sphere = Sphere(mass, [x, y, z], color, radius)
     sphere.create()
-    print("Created new sphere.")
+    print("New sphere created.")

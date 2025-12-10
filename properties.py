@@ -1,82 +1,90 @@
-# properties.py
-import pybullet as p
-from shapes import Box, Sphere
+"""
+properties_simple.py - edit only mass, color, and size for boxes and spheres.
+Size changes are implemented by removing the existing body and creating
+a new one with the same mass, color, position and orientation.
+"""
 import threading
 
-lock = threading.Lock()
+import pybullet as p #type: ignore
 
-def change_properties():
-    bodies = p.getNumBodies()
-    if bodies <= 1:
+from shapes import Box, Sphere
+
+_lock = threading.Lock()
+
+
+def change_basic_properties() -> None:
+    count = p.getNumBodies()
+    if count <= 1:
         print("No objects to edit.")
         return
 
     try:
-        body_number_input = input("Enter body number to edit: ")
-        body_number = int(body_number_input)
-    except:
+        idx = int(input("Enter body number to edit: ").strip())
+    except Exception:
         print("Invalid input.")
         return
 
-    if body_number < 1 or body_number >= bodies:
+    if idx < 1 or idx >= count:
         print("Body number out of range.")
         return
 
-    # Get current info
-    dyn_info = p.getDynamicsInfo(body_number, -1)
-    mass = dyn_info[0]
-
-    vis_data = p.getVisualShapeData(body_number)[0]
-    color = vis_data[7]
-
-    col_data = p.getCollisionShapeData(body_number, -1)[0]
-    shape_type = col_data[2]
-    dimensions = col_data[3]
-
     try:
-        # --- Mass ---
-        nm = input(f"Mass (current: {mass}): ")
-        if nm:
-            mass = float(nm)
-            p.changeDynamics(body_number, -1, mass=mass)
-            print(f"Mass updated to {mass}")
+        dyn = p.getDynamicsInfo(idx, -1)
+        mass = float(dyn[0])
+        vis = p.getVisualShapeData(idx)
+        color = vis[0][7] if vis else [1.0, 1.0, 1.0, 1.0]
+        col = p.getCollisionShapeData(idx, -1)
+        shape_type = col[0][2]
+        dimensions = col[0][3]
 
-        # --- Color ---
-        color_input = input(f"Color (r,g,b,a) (current: {color}): ")
-        if color_input:
+        # Mass
+        mass_in = input(f"Mass (current {mass}) (blank to keep): ").strip()
+        if mass_in:
             try:
-                r, g, b, a = map(float, color_input.split(','))
-                color = [r, g, b, a]
-                with lock:
-                    p.changeVisualShape(body_number, -1, rgbaColor=color)
-                print(f"Color updated to {color}")
-            except:
-                print("Invalid color input. Skipping.")
+                mass = float(mass_in)
+                p.changeDynamics(idx, -1, mass=mass)
+                print("Mass updated.")
+            except ValueError:
+                print("Invalid mass; skipping.")
 
-        # --- Size ---
-        with lock:
-            if shape_type == p.GEOM_BOX:
-                size_input = input(f"Type x,y,z values (current: {dimensions}): ")
-                # Box expects halfExtents
-                try:
-                    x, y, z = map(float, size_input.split(','))
-                    half_extents = [x/2, y/2, z/2]
-                    # Recreate box
-                    pos, orn = p.getBasePositionAndOrientation(body_number)
-                    p.removeBody(body_number)
-                    Box(mass, pos, p.getEulerFromQuaternion(orn), color, half_extents).create()
-                    print(f"Box size updated to {x},{y},{z}")
-                except:
-                    print("Invalid box size input. Skipping.")
-            elif shape_type == p.GEOM_SPHERE:
-                size_input = input(f"Type r value (current: {dimensions[0]}): ")
-                try:
-                    radius = float(size_input)
-                    pos, orn = p.getBasePositionAndOrientation(body_number)
-                    p.removeBody(body_number)
-                    Sphere(mass, pos, color, radius).create()
-                    print(f"Sphere radius updated to {radius}")
-                except:
-                    print("Invalid sphere size input. Skipping.")
-    except Exception as e:
-        print(f"Error updating properties: {e}")
+        # Color
+        color_in = input(f"Color r,g,b,a (current {color}) (blank to keep): ").strip()
+        if color_in:
+            try:
+                rgba = [float(x) for x in color_in.split(",")]
+                if len(rgba) != 4:
+                    raise ValueError
+                with _lock:
+                    p.changeVisualShape(idx, -1, rgbaColor=rgba)
+                color = rgba
+                print("Color updated.")
+            except Exception:
+                print("Invalid color; skipping.")
+
+        # Size (recreate body)
+        size_in = input("Size (box: x,y,z | sphere: radius) (blank to keep): ").strip()
+        if size_in:
+            with _lock:
+                pos, orn = p.getBasePositionAndOrientation(idx)
+                euler = p.getEulerFromQuaternion(orn)
+                # Remove the old body then create the new one at same transform
+                p.removeBody(idx)
+                if shape_type == p.GEOM_BOX:
+                    try:
+                        x, y, z = [float(v) for v in size_in.split(",")]
+                        half_extents = [x / 2.0, y / 2.0, z / 2.0]
+                        Box(mass, pos, euler, color, half_extents).create()
+                        print("Box resized.")
+                    except Exception:
+                        print("Invalid box dimensions; aborted resize.")
+                elif shape_type == p.GEOM_SPHERE:
+                    try:
+                        radius = float(size_in)
+                        Sphere(mass, pos, color, radius).create()
+                        print("Sphere resized.")
+                    except Exception:
+                        print("Invalid radius; aborted resize.")
+                else:
+                    print("Unsupported shape for resizing.")
+    except Exception as err:
+        print("Error updating properties:", err)

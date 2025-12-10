@@ -1,53 +1,59 @@
-# AKA Final
-import pybullet as p
+"""
+main.py - Entry point for the terminal-driven PyBullet simulation.
+Starts the simulation, spawns the terminal menu thread, and runs the
+main physics loop with camera controls.
+"""
 import time
 import threading
 
-from shapes import *
-from simulation import *
-from camera import *
-from properties import *
-from bodies import *
-from files import *
+import pybullet as p #type: ignore
 
-# Initialize the duplication event for synchronization
-duplication_done_event = threading.Event()
+from simulation import simulation_startup, terminal_menu
+from camera import camera_controls
 
 if __name__ == "__main__":
-    # Sample initial objects
-    base_sphere_data = [
-        [1.0, [0, 0, 1], [0.8, 0.1, 0.1, 1], 0.2]
+    # Initial objects (mass, start_pos, color, radius) for spheres
+    initial_spheres = [
+        (1.0, [0.0, 0.0, 1.0], [0.8, 0.1, 0.1, 1.0], 0.2),
     ]
-    base_box_data = [
-        [1.0, [0,0,0.5], [0,0,0], [0.5,0.5,0.8,1], [0.1,0.1,0.1]]
+
+    # Initial boxes: (mass, start_pos, start_orientation_euler, color, half_extents)
+    initial_boxes = [
+        (1.0, [0.0, 0.0, 0.5], [0.0, 0.0, 0.0], [0.5, 0.5, 0.8, 1.0], [0.1, 0.1, 0.1]),
     ]
-    starting_cam_target_pos = [0,0,0]
 
-    # Start simulation
-    spheres, boxes = simulation_startup(base_sphere_data, base_box_data, starting_cam_target_pos)
+    camera_target = [0.0, 0.0, 0.0]
 
-    # Camera initial state
-    cam_target_pos = starting_cam_target_pos.copy()
-    cam_distance = 10
-    cam_yaw = 50
-    cam_pitch = -35
+    # Initialize PyBullet simulation (connect, create objects, camera)
+    created_spheres, created_boxes = simulation_startup(
+        initial_spheres, initial_boxes, camera_target
+    )
+
+    # Camera state
+    cam_target = camera_target.copy()
+    cam_distance = 10.0
+    cam_yaw = 50.0
+    cam_pitch = -35.0
     cam_type = 1
 
-    # Start terminal menu in separate thread
+    # Start terminal menu thread (daemon so it stops with the main program)
     threading.Thread(target=terminal_menu, daemon=True).start()
 
-    # Main simulation loop
-    while p.isConnected():
-        try:
-            cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type = camera_controls(
-                cam_target_pos, cam_yaw, cam_pitch, cam_distance, cam_type
-            )
-        except Exception as e:
-            print("Camera control error:", e)
+    # Main loop: camera control + physics stepping
+    try:
+        while p.isConnected():
+            try:
+                cam_target, cam_yaw, cam_pitch, cam_distance, cam_type = camera_controls(
+                    cam_target, cam_yaw, cam_pitch, cam_distance, cam_type
+                )
+            except Exception as err:
+                # Print camera control errors without crashing
+                print("Camera error:", err)
 
-        p.stepSimulation()
-        time.sleep(1./240.)
-
-    # Graceful disconnect
-    if p.isConnected():
-        p.disconnect()
+            p.stepSimulation()
+            time.sleep(1.0 / 240.0)
+    except KeyboardInterrupt:
+        print("Interrupted by user, exiting.")
+    finally:
+        if p.isConnected():
+            p.disconnect()
