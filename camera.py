@@ -27,9 +27,9 @@ def camera_controls(camera_target, yaw, pitch, distance, cam_type):
             yaw += 2.0
         if keys.get(p.B3G_LEFT_ARROW) == p.KEY_IS_DOWN:
             yaw -= 2.0
-        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN and pitch < 88:
+        if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN and pitch < -1:
             pitch += 2.0
-        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN and pitch > -88:
+        if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN and pitch > -89:
             pitch -= 2.0
 
     # --- Pan Mode ---
@@ -66,20 +66,13 @@ def camera_controls(camera_target, yaw, pitch, distance, cam_type):
         )
 
         # --- Zoom speed tuning ---
-        base_zoom = 0.35           # base speed of zoom
-        height_factor = 0.15       # how much height affects zoom speed
-        distance_factor = 0.08     # how much distance affects zoom speed
-
-        zoom_speed = base_zoom * (1 + camera_target[2] * height_factor) * (1 + dist_from_origin * distance_factor)
-        zoom_speed = max(0.05, zoom_speed)  # never too slow
+        zoom_speed = 0.35           # speed of zoom
 
         # --- Minimum zoom tuning ---
         BASE_MIN_ZOOM = 0.25       # base min zoom when close
-        min_shrink_factor = 0.1   # min zoom shrinks as distance grows
-        ABSOLUTE_MIN = 0.005        # hard limit
+        min_shrink_factor = 0.2   # min zoom shrinks as distance grows
 
         min_zoom = BASE_MIN_ZOOM / (1 + dist_from_origin * min_shrink_factor)
-        min_zoom = max(min_zoom, ABSOLUTE_MIN)
 
         # --- Apply zoom ---
         if keys.get(p.B3G_UP_ARROW) == p.KEY_IS_DOWN:

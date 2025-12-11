@@ -18,37 +18,41 @@ import files
 duplication_event = bodies.duplication_done_event
 
 
-def simulation_startup(
-    spheres_data: List[Tuple[float, list, list, float]],
-    boxes_data: List[Tuple[float, list, list, list, list]],
-    camera_pos: list,
-):
-    """Connect to PyBullet, load the plane, spawn initial objects, and position the camera.
-
-    Returns lists of created sphere and box body IDs.
-    """
+def simulation_startup(spheres_data_list, boxes_data_list, camera_pos):
     p.connect(p.GUI)
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    p.setGravity(0.0, 0.0, -9.81)
+    p.setGravity(0, 0, -9.81)
+
+    # ---- FIX DOUBLE GRID ----
+    # Try disabling the debug grid (new PyBullet)
+    try:
+        p.configureDebugVisualizer(p.COV_ENABLE_GRID, 0)
+    except Exception:
+        # Older PyBullet: grid is part of the GUI overlay
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+
+    # Load plane
     p.loadURDF("plane.urdf")
 
-    created_spheres = []
-    created_boxes = []
+    # Create shapes
+    spheres = [
+        Sphere(mass, start_pos, color, radius)
+        for (mass, start_pos, color, radius) in spheres_data_list
+    ]
+    boxes = [Box(*data) for data in boxes_data_list]
 
-    # Create spheres
-    for mass, pos, color, radius in spheres_data:
-        s = Sphere(mass, pos, color, radius)
-        created_spheres.append(s.create())
+    for box in boxes:
+        box.create()
 
-    # Create boxes
-    for data in boxes_data:
-        # data: (mass, pos, euler, color, half_extents)
-        b = Box(*data)
-        created_boxes.append(b.create())
+    for sphere in spheres:
+        sphere.create()
 
-    p.resetDebugVisualizerCamera(10.0, 50.0, -35.0, camera_pos)
-    print("Simulation started with initial objects.")
-    return created_spheres, created_boxes
+    # Set initial camera
+    p.resetDebugVisualizerCamera(
+        10, 50, -35, camera_pos
+    )
+
+    return spheres, boxes
 
 
 def terminal_menu():
