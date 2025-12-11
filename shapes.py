@@ -89,11 +89,16 @@ def _safe_float(prompt: str, default: float) -> float:
         print("Invalid number; using default:", default)
         return default
 
+def max_checker(value: float, maximum: 100.0, name: str) -> float:
+    if value > maximum:
+        print(f"{name} too large; using maximum {maximum}.")
+        return maximum
+    return value
 
 def create_new_box() -> None:
     """Interactive creation of a new box (called from terminal menu)."""
-    x = _safe_float("Enter x position (default 0): ", 0.0)
-    y = _safe_float("Enter y position (default 0): ", 0.0)
+    x = _safe_float("Enter x position (default 0) (max = 1,000): ", 0.0)
+    y = _safe_float("Enter y position (default 0) (max = 1,000): ", 0.0)
     z = _safe_float("Enter z position (default 1): ", 1.0)
     roll = _safe_float("Roll degrees (default 0): ", 0.0)
     pitch = _safe_float("Pitch degrees (default 0): ", 0.0)

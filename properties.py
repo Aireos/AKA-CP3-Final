@@ -38,12 +38,15 @@ def change_basic_properties() -> None:
         dimensions = col[0][3]
 
         # Mass
-        mass_in = input(f"Mass (current {mass}) (blank to keep): ").strip()
+        mass_in = input(f"Mass (current {mass}) (blank to keep) (max is 1,000): ").strip()
         if mass_in:
             try:
-                mass = float(mass_in)
-                p.changeDynamics(idx, -1, mass=mass)
-                print("Mass updated.")
+                if mass > 1000:
+                    print("Mass too high; skipping.")
+                else:
+                    mass = float(mass_in)
+                    p.changeDynamics(idx, -1, mass=mass)
+                    print("Mass updated.")
             except ValueError:
                 print("Invalid mass; skipping.")
 
@@ -62,29 +65,41 @@ def change_basic_properties() -> None:
                 print("Invalid color; skipping.")
 
         # Size (recreate body)
-        size_in = input("Size (box: x,y,z | sphere: radius) (blank to keep): ").strip()
-        if size_in:
-            with _lock:
-                pos, orn = p.getBasePositionAndOrientation(idx)
-                euler = p.getEulerFromQuaternion(orn)
-                # Remove the old body then create the new one at same transform
-                p.removeBody(idx)
-                if shape_type == p.GEOM_BOX:
+        with _lock:
+            pos, orn = p.getBasePositionAndOrientation(idx)
+            euler = p.getEulerFromQuaternion(orn)
+            # Remove the old body then create the new one at same transform
+            p.removeBody(idx)
+            if shape_type == p.GEOM_BOX:
+                size_in = input("Enter new box dimensions x,y,z (blank to keep) (max is 1,000 for each): ").strip()
+                if not size_in:
+                    half_extents = [d / 2.0 for d in dimensions]
+                else:
+                    if any(float(s) > 1000 for s in size_in.split(",")):
+                        print("Box dimensions too large; skipping.")
+                        return
                     try:
                         x, y, z = [float(v) for v in size_in.split(",")]
                         half_extents = [x / 2.0, y / 2.0, z / 2.0]
                         Box(mass, pos, euler, color, half_extents).create()
                         print("Box resized.")
                     except Exception:
-                        print("Invalid box dimensions; aborted resize.")
-                elif shape_type == p.GEOM_SPHERE:
+                        print("Invalid box dimensions; skipping.")
+            elif shape_type == p.GEOM_SPHERE:
+                size_in = input("Enter new sphere radius (blank to keep) (max is 1,000): ").strip()
+                if not size_in:
+                    radius = float(dimensions[0])
+                else:
+                    if float(size_in) > 1000:
+                        print("Sphere radius too large; skipping.")
+                        return
                     try:
                         radius = float(size_in)
                         Sphere(mass, pos, color, radius).create()
                         print("Sphere resized.")
                     except Exception:
-                        print("Invalid radius; aborted resize.")
-                else:
-                    print("Unsupported shape for resizing.")
+                        print("Invalid radius; skipping.")
+            else:
+                print("Unsupported shape for resizing.")
     except Exception as err:
         print("Error updating properties:", err)

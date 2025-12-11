@@ -36,7 +36,7 @@ def list_all_bodies() -> None:
             size = collision[0][3] if collision else "N/A"
             euler = p.getEulerFromQuaternion(orn)
             print(
-                f"Body #{body_index} | Pos:{pos} | Euler:{euler} | Mass:{mass} | Color:{color} | Size:{size}"
+                f"Body #{body_index}\nPos:{pos}\nEuler:{euler}\nMass:{mass}\nColor:{color}\nSize:{size}\n--------------"
             )
         except Exception as err:
             print(f"Error reading body {body_index}: {err}")

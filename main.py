@@ -12,6 +12,7 @@ from simulation import simulation_startup, terminal_menu
 from camera import camera_controls
 
 if __name__ == "__main__":
+
     # Initial objects (mass, start_pos, color, radius) for spheres
     initial_spheres = [
         (1.0, [0.0, 0.0, 1.0], [0.8, 0.1, 0.1, 1.0], 0.2),

@@ -57,6 +57,12 @@ def simulation_startup(spheres_data_list, boxes_data_list, camera_pos):
 
 def terminal_menu():
     """Terminal-driven menu (runs on a separate thread)."""
+    print("\n--- Camera Controls ---")
+    print("Arrow Keys: Move camera based on mode")
+    print("j: Orbit mode")
+    print("k: Pan mode")
+    print("n: Elevate mode")
+    print("m: Zoom mode")
     while True:
         try:
             print("\n--- Terminal Options ---")
@@ -69,7 +75,7 @@ def terminal_menu():
             print("7. Import shapes from file")
             print("8. Export shapes to file")
             print("9. Exit simulation")
-            choice = input("> ").strip()
+            choice = input("Input: ").strip()
 
             if choice == "1":
                 bodies.duplicate_object()
