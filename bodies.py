@@ -55,6 +55,8 @@ def duplicate_object() -> None:
         duplication_done_event.set()
         return
 
+    list_all_bodies()
+
     raw = input("Enter body number to duplicate (blank = last object): ").strip()
     try:
         body_idx = int(raw) if raw != "" else count - 1
@@ -118,5 +120,8 @@ def duplicate_object() -> None:
         except Exception as err:
             print("Duplication error:", err)
 
-    print("Duplicated body IDs:", created_ids)
+    first_id = created_ids[0] if created_ids else "N/A"
+    last_id = created_ids[-1] if created_ids else "N/A"
+
+    print("Duplicated body IDs range from", first_id, "to", last_id)
     duplication_done_event.set()
