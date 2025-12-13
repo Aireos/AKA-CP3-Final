@@ -1,5 +1,9 @@
+Steps for installation
+1.
 Microsoft Visual C++ 14.0 or greater required. Can get at the following link:
 https://visualstudio.microsoft.com/visual-cpp-build-tools/
-Inside it, you need to get "Desktop development with C++" workload
-Needed to install:
+2.
+Inside it, you need to select "Desktop development with C++" workload before downloading
+3.
+run command shown below to instlal pybullet
 python -m pip install pybullet

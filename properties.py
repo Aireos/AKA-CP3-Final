@@ -71,7 +71,7 @@ def change_basic_properties() -> None:
             pos, orn = p.getBasePositionAndOrientation(idx)
             euler = p.getEulerFromQuaternion(orn)
             # Remove the old body then create the new one at same transform
-            p.removeBody(idx)
+            
             if shape_type == p.GEOM_BOX:
                 size_in = input("Enter new box dimensions x,y,z (blank to keep) (max is 1,000 for each): ").strip()
                 if not size_in:
@@ -83,6 +83,7 @@ def change_basic_properties() -> None:
                     try:
                         x, y, z = [float(v) for v in size_in.split(",")]
                         half_extents = [x / 2.0, y / 2.0, z / 2.0]
+                        p.removeBody(idx)
                         Box(mass, pos, euler, color, half_extents).create()
                         print("Box resized.")
                     except Exception:
@@ -97,6 +98,7 @@ def change_basic_properties() -> None:
                         return
                     try:
                         radius = float(size_in)
+                        p.removeBody(idx)
                         Sphere(mass, pos, color, radius).create()
                         print("Sphere resized.")
                     except Exception:

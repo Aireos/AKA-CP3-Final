@@ -57,6 +57,8 @@ def camera_controls(camera_target, yaw, pitch, distance, cam_type):
             camera_target[2] += move_speed
         if keys.get(p.B3G_DOWN_ARROW) == p.KEY_IS_DOWN:
             camera_target[2] -= move_speed
+            if camera_target[2] < 0:
+                camera_target[2] = 0
 
     # --- Zoom Mode ---
     elif cam_type == 4:

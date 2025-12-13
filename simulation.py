@@ -68,6 +68,9 @@ def terminal_menu():
     checker = None
     while checker == None:
         checker = input("Please half screen your terminal window for optimal experience (press Enter to continue): ")
+    checker = None
+    while checker == None:
+        checker = input("Switch between the terminal and the simulation screen for options and camera movement respectivly (press Enter to continue): ")
     while True:
         try:
             print("\n--- Terminal Options ---")
@@ -80,7 +83,7 @@ def terminal_menu():
             print("7. Import shapes from file")
             print("8. Export shapes to file")
             print("9. Exit simulation")
-            choice = input("Input: ").strip()
+            choice = input("Choice: ").strip()
             os.system('cls')
             if choice == "1":
                 bodies.duplicate_object()

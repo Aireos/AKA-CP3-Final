@@ -35,8 +35,15 @@ def list_all_bodies() -> None:
             collision = p.getCollisionShapeData(body_index, -1)
             size = collision[0][3] if collision else "N/A"
             euler = p.getEulerFromQuaternion(orn)
+            shape_type = collision[0][2]
+            if shape_type == p.GEOM_BOX:
+                type = "Box"
+            elif shape_type == p.GEOM_SPHERE:
+                type = "Sphere"
+            else:
+                type = "Unknown"
             print(
-                f"Body #{body_index}\nPos:{pos}\nEuler:{euler}\nMass:{mass}\nColor:{color}\nSize:{size}\n--------------"
+                f"Body #{body_index}\nPos:{pos}\nEuler:{euler}\nMass:{mass}\nColor:{color}\nSize:{size}\nType:{type}\n--------------"
             )
         except Exception as err:
             print(f"Error reading body {body_index}: {err}")
