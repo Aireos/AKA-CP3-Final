@@ -1,3 +1,7 @@
+Face based object simulator with UI controls for shapes
+
+based on pybullets functions
+
 Steps for installation
 1.
 Microsoft Visual C++ 14.0 or greater required. Can get at the following link:
@@ -7,3 +11,5 @@ Inside it, you need to select "Desktop development with C++" workload before dow
 3.
 run command shown below to instlal pybullet
 python -m pip install pybullet
+
+Made by: Alexander K Anderson P:3 2025-2026 10th grade
