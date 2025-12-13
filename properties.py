@@ -9,6 +9,8 @@ import pybullet as p #type: ignore
 
 from shapes import Box, Sphere
 
+from bodies import list_all_bodies
+
 _lock = threading.Lock()
 
 
@@ -17,7 +19,7 @@ def change_basic_properties() -> None:
     if count <= 1:
         print("No objects to edit.")
         return
-
+    list_all_bodies()
     try:
         idx = int(input("Enter body number to edit: ").strip())
     except Exception:
@@ -41,11 +43,11 @@ def change_basic_properties() -> None:
         mass_in = input(f"Mass (current {mass}) (blank to keep) (max is 1,000): ").strip()
         if mass_in:
             try:
-                if mass > 1000:
+                new_mass = float(mass_in)
+                if new_mass > 1000:
                     print("Mass too high; skipping.")
                 else:
-                    mass = float(mass_in)
-                    p.changeDynamics(idx, -1, mass=mass)
+                    p.changeDynamics(bodyUniqueId=idx, linkIndex=-1, mass=new_mass)
                     print("Mass updated.")
             except ValueError:
                 print("Invalid mass; skipping.")

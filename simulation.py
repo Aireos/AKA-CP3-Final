@@ -8,6 +8,7 @@ from typing import List, Tuple
 import pybullet as p #type: ignore
 import pybullet_data #type: ignore
 import threading
+import os
 
 from shapes import Sphere, Box, create_new_box, create_new_sphere
 import bodies
@@ -56,6 +57,7 @@ def simulation_startup(spheres_data_list, boxes_data_list, camera_pos):
 
 
 def terminal_menu():
+    os.system('cls')
     """Terminal-driven menu (runs on a separate thread)."""
     print("\n--- Camera Controls ---")
     print("Arrow Keys: Move camera based on mode")
@@ -63,6 +65,9 @@ def terminal_menu():
     print("k: Pan mode")
     print("n: Elevate mode")
     print("m: Zoom mode")
+    checker = None
+    while checker == None:
+        checker = input("Please half screen your terminal window for optimal experience (press Enter to continue): ")
     while True:
         try:
             print("\n--- Terminal Options ---")
@@ -76,7 +81,7 @@ def terminal_menu():
             print("8. Export shapes to file")
             print("9. Exit simulation")
             choice = input("Input: ").strip()
-
+            os.system('cls')
             if choice == "1":
                 bodies.duplicate_object()
                 # Wait until duplication completes
