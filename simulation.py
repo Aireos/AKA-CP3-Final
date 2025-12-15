@@ -1,13 +1,7 @@
-"""
-simulation.py - initializes the PyBullet simulation and provides the
-terminal menu thread. The terminal menu calls into other modules for
-object creation, duplication, editing, and file operations.
-"""
-from typing import List, Tuple
+#AKA CP3 Final Project
 
 import pybullet as p #type: ignore
 import pybullet_data #type: ignore
-import threading
 import os
 
 from shapes import Sphere, Box, create_new_box, create_new_sphere
@@ -15,7 +9,6 @@ import bodies
 import properties
 import files
 
-# Export duplication event for external modules if needed
 duplication_event = bodies.duplication_done_event
 
 
@@ -58,7 +51,6 @@ def simulation_startup(spheres_data_list, boxes_data_list, camera_pos):
 
 def terminal_menu():
     os.system('cls')
-    """Terminal-driven menu (runs on a separate thread)."""
     print("\n--- Camera Controls ---")
     print("Arrow Keys: Move camera based on mode")
     print("j: Orbit mode")
@@ -87,7 +79,6 @@ def terminal_menu():
             os.system('cls')
             if choice == "1":
                 bodies.duplicate_object()
-                # Wait until duplication completes
                 bodies.duplication_done_event.wait()
             elif choice == "2":
                 create_new_box()

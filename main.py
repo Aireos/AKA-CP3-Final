@@ -1,8 +1,5 @@
-"""
-main.py - Entry point for the terminal-driven PyBullet simulation.
-Starts the simulation, spawns the terminal menu thread, and runs the
-main physics loop with camera controls.
-"""
+#AKA CP3 Final Project
+
 import time
 import threading
 
@@ -12,35 +9,29 @@ from simulation import simulation_startup, terminal_menu
 from camera import camera_controls
 
 if __name__ == "__main__":
-    checker = None
-    while checker == None:
-        checker = input("Please enter the secret code to access the simulation: ")
+    checker = input("Please enter the secret code to access the simulation: ")
     print("Access granted. Starting simulation...")
-    # Initial objects (mass, start_pos, color, radius) for spheres
+    # mass, start_pos, color, radius
     initial_spheres = [
         (1.0, [0.0, 0.0, 1.0], [0.8, 0.1, 0.1, 1.0], 0.2),
     ]
-
-    # Initial boxes: (mass, start_pos, start_orientation_euler, color, half_extents)
+    # mass, start_pos, start_orientation, color, half_extents
     initial_boxes = [
         (1.0, [0.0, 0.0, 0.5], [0.0, 0.0, 0.0], [0.5, 0.5, 0.8, 1.0], [0.1, 0.1, 0.1]),
     ]
 
-    camera_target = [0.0, 0.0, 0.0]
+    initial_camera_target = [0.0, 0.0, 0.0]
 
-    # Initialize PyBullet simulation (connect, create objects, camera)
     created_spheres, created_boxes = simulation_startup(
-        initial_spheres, initial_boxes, camera_target
+        initial_spheres, initial_boxes, initial_camera_target
     )
 
-    # Camera state
-    cam_target = camera_target.copy()
+    cam_target = initial_camera_target.copy()
     cam_distance = 10.0
     cam_yaw = 50.0
     cam_pitch = -35.0
     cam_type = 1
 
-    # Start terminal menu thread (daemon so it stops with the main program)
     threading.Thread(target=terminal_menu, daemon=True).start()
 
     # Main loop: camera control + physics stepping

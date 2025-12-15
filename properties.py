@@ -1,8 +1,5 @@
-"""
-properties_simple.py - edit only mass, color, and size for boxes and spheres.
-Size changes are implemented by removing the existing body and creating
-a new one with the same mass, color, position and orientation.
-"""
+#AKA CP3 Final Project
+
 import threading
 
 import pybullet as p #type: ignore

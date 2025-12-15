@@ -1,11 +1,5 @@
-"""
-files.py - simple import/export of shapes to/from text files.
-Format (box):
-box,mass,x,y,z,euler_x,euler_y,euler_z,r,g,b,a,half_x,half_y,half_z
+#AKA CP3 Final Project
 
-Format (sphere):
-sphere,mass,x,y,z,r,g,b,a,radius
-"""
 import threading
 
 import pybullet as p #type: ignore
@@ -14,17 +8,16 @@ from shapes import Box, Sphere
 
 _io_lock = threading.Lock()
 
-
 def import_shapes() -> None:
     name = input("Enter filename to import (txt): ").strip()
     if not name.endswith(".txt"):
         name += ".txt"
 
     try:
-        with open(name, "r") as fh:
-            lines = [ln.strip() for ln in fh if ln.strip()]
-    except Exception as err:
-        print("File error:", err)
+        with open(name, "r") as file:
+            lines = [ln.strip() for ln in file if ln.strip()]
+    except Exception as e:
+        print("File error:", e)
         return
 
     with _io_lock:
