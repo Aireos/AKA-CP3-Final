@@ -156,7 +156,7 @@ def create_new_box() -> None:
     # Positions
     x = _safe_float("Enter x position (default 0) (-100 to 100): ", 0.0, -100, 100)
     y = _safe_float("Enter y position (default 0) (-100 to 100): ", 0.0, -100, 100)
-    z = _safe_float("Enter z position (default 1) (-100 to 100): ", 1.0, -100, 100)
+    z = _safe_float("Enter z position (default 1) (0 to 100): ", 1.0, 0, 100)
 
     # Orientation (Euler degrees)
     roll = _safe_float("Roll degrees (default 0) (-180 to 180): ", 0.0, -180, 180)
@@ -176,7 +176,7 @@ def create_new_box() -> None:
 
     box = Box(
         mass=mass,
-        start_pos=[x, y, z],
+        start_pos=[x, y, z + half_extents[2]],
         start_orientation=[
             math.radians(roll),
             math.radians(pitch),
@@ -198,13 +198,13 @@ def create_new_sphere() -> None:
 
     x = _safe_float("Enter x position (default 0) (-100 to 100): ", 0.0, -100, 100)
     y = _safe_float("Enter y position (default 0) (-100 to 100): ", 0.0, -100, 100)
-    z = _safe_float("Enter z position (default 1) (-100 to 100): ", 1.0, -100, 100)
+    z = _safe_float("Enter z position (default 1) (0 to 100): ", 1.0, 0, 100)
 
     color = _read_color()
 
     sphere = Sphere(
         mass=mass,
-        start_pos=[x, y, z],
+        start_pos=[x, y, z+ radius],
         color=color,
         radius=radius,
     )
